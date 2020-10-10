@@ -1,6 +1,7 @@
 import numpy as np
 import math
 import matplotlib.pyplot as plt
+from scipy import optimize
 from loguru import logger
 
 
@@ -10,30 +11,34 @@ G = 9.81  # Gravety constant
 
 class RefExperimentMass():
 
-    def __init__(self, m=[2e-12, 1e-12], m_ref=2e-12, v_ref=10, N=10,
-                 alpha=0, gravity=True):
+    def __init__(self, m=[2e-12, 1e-12], m_ref=2e-12, v_ref=1, N=100,
+                 alpha=[0, 0], dt=.1, gravity=True):
         self.m = np.array(m)
+        self.dt = dt
+        self.m_ref = m_ref
+        self.v_ref = v_ref
+        self.alpha = np.array(alpha)
+        self.N = N
+        self.g = G if gravity else 0
+        self.set_initial_state()
+
+    def set_initial_state(self):
+        self.t = 0
+        self.m = np.array(self.m)
         self.x = np.zeros(2)
         self.z = np.zeros(2)
         self.v_x = np.zeros(2)
         self.v_z = np.zeros(2)
-        self.m_ref = m_ref
-        self.v_ref = v_ref
-        self.alpha = alpha
-        self.dt = 1
-        self.t = 0
-        self.N = N
-        self.x_series = np.empty((N, len(m)))
+        self.x_series = np.empty((self.N, len(self.m)))
         self.z_series = np.empty_like(self.x_series)
-        self.t_series = np.empty((N, 1))
+        self.t_series = np.empty((self.N, 1))
         self.v_x_series = np.empty_like(self.x_series)
         self.v_z_series = np.empty_like(self.x_series)
-        self.g = G if gravity else 0
 
     def _get_initial_velocity(self):
         v_abs = 2 * self.m_ref / (self.m + self.m_ref) * self.v_ref
-        v_x = v_abs * math.cos(self.alpha)
-        v_z = v_abs * math.sin(self.alpha)
+        v_x = v_abs * np.cos(self.alpha)
+        v_z = v_abs * np.sin(self.alpha)
         return v_x, v_z
 
     def _update_velocity(self):
@@ -42,17 +47,12 @@ class RefExperimentMass():
             self.v_x, self.v_z = self._get_initial_velocity()
         else:
             self.v_x = self.v_x
-            self.v_z = self.v_z - .5 * self.g * self.dt**2
+            self.v_z = self.v_z - self.g * self.dt
 
     def _update_position(self):
         # update position
         self.x += self.v_x * self.dt
-        self.z += self.v_z * self.dt
-
-        # cap in z direction
-
-
-
+        self.z += self.v_z * self.dt + .5 * self.g * self.dt**2
         # update time
         self.t += self.dt
 
@@ -67,7 +67,7 @@ class RefExperimentMass():
             self._update_position()
             self.t += self.dt
 
-    def visualize(self):
+    def visualize(self, golf_hole_loc=20):
         from plotly.subplots import make_subplots
         import plotly.graph_objects as go
         fig = make_subplots(rows=2, cols=1)
@@ -75,13 +75,17 @@ class RefExperimentMass():
                                name='Particle 1')
         trace_pp2 = go.Scatter(x=self.x_series[:, 1], y=self.z_series[:, 1],
                                name='Particle 2')
-        trace_golf_hole = go.Scatter(x=[49, 51], y=[0, 0],
-                                     name='Golf hole')
+        trace_golf_hole = go.Scatter(
+            x=[golf_hole_loc - .1 * golf_hole_loc,
+                golf_hole_loc + .1 * golf_hole_loc],
+            y=[0, 0],
+            name='Golf hole')
         fig.add_trace(trace_pp1, row=1, col=1)
         fig.add_trace(trace_pp2, row=1, col=1)
-        # fig.add_trace(trace_golf_hole, row=1, col=1)
+        fig.add_trace(trace_golf_hole, row=1, col=1)
         title = f'RE1: m_ref = {self.m_ref} kg, m = {self.m} kg'\
-            f' alha = {round(self.alpha/np.pi, 2)} pi, v_ref = {self.v_ref}'
+            f' alha = [{round(self.alpha[0]/np.pi, 2)} '\
+            f'{round(self.alpha[1]/np.pi, 2)}] pi, v_ref = {self.v_ref}'
         fig.update_layout(title_text=title)
         fig.update_xaxes(title_text="Position x [m]", row=1, col=1)
         fig.update_yaxes(title_text="Position z [m]", row=1, col=1)
@@ -148,25 +152,37 @@ class RefExperimentCharge():
         fig.show()
 
 
+def objective_golf_mass(alpha, exp, golf_hole_loc=0.05):
+    PENALTY_VALUE = 100
+    exp.set_initial_state()
+    exp.alpha = alpha
+    exp.run()
+
+    def get_value_for_particle(i):
+        zero_cross = np.where(np.diff(np.sign(exp.z_series[1:, i])))[0]
+        if len(zero_cross) != 1:
+            logger.warning(f'Particle {i} did not hit the ground')
+            value = PENALTY_VALUE
+        else:
+            x_at_zero_cross = (
+                exp.x_series[zero_cross + 1][0][i]
+                + exp.x_series[zero_cross + 2][0][i]) / 2
+            value = np.abs(x_at_zero_cross - golf_hole_loc)
+        return value
+
+    return np.sum([get_value_for_particle(i) for i in [0, 1]])
+
+
 if __name__ == '__main__':
-    rem = RefExperimentMass(alpha=np.pi * .25, N=11)
+    DT = .01
+    N = 100
+    GOLF_HOLE_LOC = 0.1
+    rem = RefExperimentMass(N=100, dt=.01)
     rem.run()
-    rem.visualize()
-
-    # req = RefExperimentCharge(N=100)
-    # req.run()
-
-
-        # def objective(self, s, X, clf):
-        # mat = np.zeros_like(X)
-        # mat[:, 0] = X[:, 0]
-        # mat[:, 1] = X[:, 1] + s
-        # y_pred = clf.predict(mat)
-        # frac = self.get_frac_of_inlier(y_pred)
-        # return -frac
-
-    # def shift_y_to_optimal_fit(self, X, clf, min_bound, max_bound):
-        # drift = optimize.fminbound(self.objective, min_bound,
-                                   # max_bound, args=[X, clf])
-        # X_shift = X.copy()
-        # X_shift[:, 1] = X_shift[:, 1]
+    rem.visualize(golf_hole_loc=GOLF_HOLE_LOC)
+    initial_guess = [0.4999 * np.pi, 0.4999 * np.pi]
+    alpha_star = optimize.minimize(
+        objective_golf_mass, initial_guess, method='Nelder-Mead', args=(rem, GOLF_HOLE_LOC)).x
+    rem_opt = RefExperimentMass(alpha=alpha_star, N=100, dt=.01)
+    rem_opt.run()
+    rem_opt.visualize(golf_hole_loc=GOLF_HOLE_LOC)
