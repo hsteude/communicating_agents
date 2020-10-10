@@ -45,7 +45,7 @@ class RefExperimentMass():
     def plot(self, i):
         import plotly.express as px
         fig = px.line(
-            x=self.t_series, y=self.x_series[:, i],
+            x=self.t_series[:, 0], y=self.x_series[:, i],
             labels={'x': 't [s]', 'y': 'x_position [m]'},
             title=f'Ref. exp. masses: m_ref = {self.m_ref}, m = {self.m[i]}')
         fig.show()
@@ -105,7 +105,7 @@ class RefExperimentCharge():
     def plot(self, i):
         import plotly.express as px
         fig = px.line(
-            x=self.t_series, y=self.x_series[:, i],
+            x=self.t_series[:, 0], y=self.x_series[:, i],
             labels={'x': 't [s]', 'y': 'x_position [m]'},
             title=f'Ref. exp charge: m_ref = {self.m_ref}, m = {self.m[i]},'
             f' q_ref = {self.q_ref} q = {self.q[i]}, d0 = {self.x_ref}')
