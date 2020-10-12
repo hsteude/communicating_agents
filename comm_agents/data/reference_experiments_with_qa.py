@@ -11,7 +11,7 @@ G = 9.81  # Gravety constant
 class RefExperimentMass():
 
     def __init__(self, m=[2e-12, 1e-12], m_ref=2e-12, v_ref=1, N=100,
-                 alpha=[0, 0], dt=.1, gravity=True):
+                 alpha=[0, 0], dt=.1, gravity=True, **kwargs):
         self.m = np.array(m)
         self.dt = dt
         self.m_ref = m_ref
@@ -71,9 +71,9 @@ class RefExperimentMass():
         import plotly.graph_objects as go
         fig = make_subplots(rows=1, cols=1)
         trace_pp1 = go.Scatter(x=self.x_series[:, 0], y=self.z_series[:, 0],
-                               name='Particle 1')
+                               name='Particle 1', mode='lines+markers')
         trace_pp2 = go.Scatter(x=self.x_series[:, 1], y=self.z_series[:, 1],
-                               name='Particle 2')
+                               name='Particle 2', mode='lines+markers')
         trace_golf_hole = go.Scatter(
             x=[golf_hole_loc - .1 * golf_hole_loc,
                 golf_hole_loc + .1 * golf_hole_loc],
@@ -93,84 +93,130 @@ class RefExperimentMass():
 
 class RefExperimentCharge():
 
-    def __init__(self, m=[2e-12, 1e-12], q=[3e-9, 4e-9],
-                 q_ref=-1e-9, d=.1, N=10):
-        self.q = np.array(q)
+    def __init__(self, m=[2e-12, 1e-12], q=[3e-9, -4e-9], m_ref=2e-12, v_ref=1,
+                 q_ref=-1e-12, d=.1, N=100, alpha=[0, 0], dt=.1, is_golf_game=True, **kwargs):
         self.m = np.array(m)
-        self.x = np.zeros_like(self.m)
-        self.v = np.zeros_like(self.m)
-        self.a = np.zeros_like(self.m)
-        self.last_a = np.zeros_like(m)
-        self.q_ref = q_ref
+        self.q = np.array(q)
+        self.dt = dt
+        self.m_ref = m_ref
+        self.v_ref = v_ref
+        self.q_ref = np.array([q_ref]*2)
         self.x_ref = d
-        self.dt = 1e-6
-        self.t = 0
+        self.y_ref = 0
+        self.alpha = np.array(alpha)
         self.N = N
-        self.x_series = np.empty((N, 2))
-        self.v_series = np.empty_like(self.x_series)
-        self.a_series = np.empty_like(self.v_series)
-        self.t_series = np.empty((N, 1))
+        self.set_initial_state()
+        if is_golf_game:
+            self.q_ref = np.flip(q)
+
+    def set_initial_state(self):
+        self.t = 0
+        self.m = np.array(self.m)
+        self.x = np.zeros(2)
+        self.y = np.zeros(2)
+        self.v_x = np.zeros(2)
+        self.v_y = np.zeros(2)
+        self.a_x = np.zeros_like(self.m)
+        self.a_y = np.zeros_like(self.m)
+        self.last_a_x = np.zeros_like(self.m)
+        self.last_a_y = np.zeros_like(self.m)
+        self.x_series = np.empty((self.N, len(self.m)))
+        self.y_series = np.empty_like(self.x_series)
+        self.t_series = np.empty((self.N, 1))
+        self.v_x_series = np.empty_like(self.x_series)
+        self.v_y_series = np.empty_like(self.x_series)
+        self.a_x_series = np.empty_like(self.x_series)
+        self.a_y_series = np.empty_like(self.x_series)
+
+    def _get_initial_velocity(self):
+        v_abs = 2 * self.m_ref / (self.m + self.m_ref) * self.v_ref
+        v_x = v_abs * np.cos(self.alpha)
+        v_y = v_abs * np.sin(self.alpha)
+        return v_x, v_y
 
     def _update_acceleration(self):
         # get coulomb forces
-        F_c = K_E * self.q * self.q_ref / ((self.x - self.x_ref)**2) \
-            * (self.x - self.x_ref) / np.abs(self.x - self.x_ref)
+        dist = np.sqrt((self.x - self.x_ref)**2 + (self.y - self.y_ref)**2)
 
-        if any(F_c) < 1:
-            logger.warning('Parcicle passed by reference particel,'
-                           ' this is not considered a valid examle')
+        F_c = K_E * self.q * self.q_ref / (dist**2)
+
+        direc = ((self.x - self.x_ref), (self.y - self.y_ref)) / dist
+        F_c_x = direc[0, :] * F_c
+        F_c_y = direc[1, :] * F_c
 
         # update acceleration for each particle
-        self.a = F_c / self.m
+        self.a_x = F_c_x / self.m
+        self.a_y = F_c_y / self.m
 
     def _update_velocity(self):
-        self.v = self.v + .5 * (self.last_a + self.a) * self.dt
+        # velocity after elastic collision
+        if self.t == 0:
+            self.v_x, self.v_y = self._get_initial_velocity()
+        else:
+            self.v_x = self.v_x + .5 * (self.last_a_x + self.a_x) * self.dt
+            self.v_y = self.v_y + .5 * (self.last_a_y + self.a_y) * self.dt
 
     def _update_position(self):
-        self.x += self.v * self.dt + .5 * self.a * self.dt**2
+        # update position
+        self.x += self.v_x * self.dt + .5 * self.a_x * self.dt**2
+        self.y += self.v_y * self.dt + .5 * self.a_y * self.dt**2
+        # update time
+        self.t += self.dt
+
+        # for i in range(len(self.m)):
+            # if self.y[i] < 0:  # this should not happen, propably the ref. par.
+                # self.x[i] = self.x_ref
+                # self.y[i] = self.y_ref
+                # logger.warning(f'Particle {i} hit the reference particle,'
+                               # ' this is not a valid example')
 
     def run(self):
         for i in range(self.N):
+            self.x_series[i, :] = self.x
+            self.y_series[i, :] = self.y
+            self.v_x_series[i, :] = self.v_x
+            self.v_y_series[i, :] = self.v_y
+            self.a_x_series[i, :] = self.a_x
+            self.a_y_series[i, :] = self.a_y
+            self.t_series[i, :] = self.t
             self._update_acceleration()
             self._update_velocity()
             self._update_position()
-            self.last_a = self.a
+            self.last_a_x = self.a_x
+            self.last_a_y = self.a_y
             self.t += self.dt
-            self.x_series[i, :] = self.x
-            self.v_series[i, :] = self.v
-            self.a_series[i, :] = self.a
-            self.t_series[i, :] = self.t
 
-    def plot(self, i):
-        import plotly.express as px
-        fig = px.line(
-            x=self.t_series, y=self.x_series[:, i],
-            labels={'x': 't [s]', 'y': 'x_position [m]'},
-            title=f'Ref. exp charge: m_ref = {self.m_ref}, m = {self.m[i]},'
-            f' q_ref = {self.q_ref} q = {self.q[i]}, d0 = {self.x_ref}')
+    def visualize(self, golf_hole_loc):
+        from plotly.subplots import make_subplots
+        import plotly.graph_objects as go
+        fig = make_subplots(rows=1, cols=1)
+        trace_pp1 = go.Scatter(x=self.x_series[:, 0], y=self.y_series[:, 0],
+                               name='Particle 1', mode='lines+markers',
+                               opacity=0.5)
+        trace_pp2 = go.Scatter(x=self.x_series[:, 1], y=self.y_series[:, 1],
+                               name='Particle 2', mode='lines+markers',
+                               opacity=0.5)
+        trace_p_ref = go.Scatter(
+            x=[self.x_ref - .001 * self.x_ref,
+                self.x_ref + .001 * self.x_ref],
+            y=[0, 0],
+            name='Reference particle')
+        trace_golf_hole = go.Scatter(x=[0, 0],
+                                     y=[golf_hole_loc - .01 * golf_hole_loc,
+                                        golf_hole_loc + .01 * golf_hole_loc],
+                                     name='Golf hole')
+        fig.add_trace(trace_pp1, row=1, col=1)
+        fig.add_trace(trace_pp2, row=1, col=1)
+        fig.add_trace(trace_p_ref, row=1, col=1)
+        fig.add_trace(trace_golf_hole, row=1, col=1)
+        title = f'RE2: m_ref = {self.m_ref} kg, m = {self.m} kg'\
+            f' alpha = [{round(self.alpha[0]/np.pi, 2)} '\
+            f'{round(self.alpha[1]/np.pi, 2)}] pi, v_ref = {self.v_ref}'\
+            f', q = {self.q}'
+        fig.update_layout(title_text=title)
+        fig.update_xaxes(title_text="Position x [m]", row=1, col=1)
+        fig.update_yaxes(title_text="Position y [m]", row=1, col=1)
         fig.show()
-
-
-def objective_golf_mass(alpha, exp, golf_hole_loc=0.05):
-    PENALTY_VALUE = 100
-    exp.set_initial_state()
-    exp.alpha = alpha
-    exp.run()
-
-    def get_value_for_particle(i):
-        zero_cross = np.where(np.diff(np.sign(exp.z_series[1:, i])))[0]
-        if len(zero_cross) != 1:
-            logger.warning(f'Particle {i} did not hit the ground')
-            value = PENALTY_VALUE
-        else:
-            x_at_zero_cross = (
-                exp.x_series[zero_cross + 1][0][i]
-                + exp.x_series[zero_cross + 2][0][i]) / 2
-            value = np.abs(x_at_zero_cross - golf_hole_loc)
-        return value
-
-    return np.sum([get_value_for_particle(i) for i in [0, 1]])
-
 
 if __name__ == '__main__':
     DT = .01
@@ -178,10 +224,17 @@ if __name__ == '__main__':
     GOLF_HOLE_LOC = 0.1
     rem = RefExperimentMass(N=100, dt=.01)
     rem.run()
-    rem.visualize(golf_hole_loc=GOLF_HOLE_LOC)
-    initial_guess = [0.4999 * np.pi, 0.4999 * np.pi]
-    alpha_star = optimize.minimize(
-        objective_golf_mass, initial_guess, method='Nelder-Mead', args=(rem, GOLF_HOLE_LOC)).x
-    rem_opt = RefExperimentMass(alpha=alpha_star, N=100, dt=.01)
-    rem_opt.run()
-    rem_opt.visualize(golf_hole_loc=GOLF_HOLE_LOC)
+    # rem.visualize(golf_hole_loc=GOLF_HOLE_LOC)
+    # initial_guess = [0.4999 * np.pi, 0.4999 * np.pi]
+    # alpha_star = optimize.minimize(
+    # objective_golf_mass, initial_guess, method='Nelder-Mead', args=(rem, GOLF_HOLE_LOC)).x
+    # rem_opt = RefExperimentMass(alpha=alpha_star, N=100, dt=.01)
+    # rem_opt.run()
+    # rem_opt.visualize(golf_hole_loc=GOLF_HOLE_LOC)
+
+    req = RefExperimentCharge(N=100, dt=.0001, d=1,
+                              alpha=[.5 * np.pi, .75 * np.pi],
+                              v_ref=100,
+                              m_ref=5e-10)
+    req.run()
+    req.visualize(1)
