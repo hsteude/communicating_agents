@@ -69,7 +69,7 @@ class RefExperimentMass():
     def visualize(self, golf_hole_loc=20):
         from plotly.subplots import make_subplots
         import plotly.graph_objects as go
-        fig = make_subplots(rows=2, cols=1)
+        fig = make_subplots(rows=1, cols=1)
         trace_pp1 = go.Scatter(x=self.x_series[:, 0], y=self.z_series[:, 0],
                                name='Particle 1')
         trace_pp2 = go.Scatter(x=self.x_series[:, 1], y=self.z_series[:, 1],
@@ -83,7 +83,7 @@ class RefExperimentMass():
         fig.add_trace(trace_pp2, row=1, col=1)
         fig.add_trace(trace_golf_hole, row=1, col=1)
         title = f'RE1: m_ref = {self.m_ref} kg, m = {self.m} kg'\
-            f' alha = [{round(self.alpha[0]/np.pi, 2)} '\
+            f' alpha = [{round(self.alpha[0]/np.pi, 2)} '\
             f'{round(self.alpha[1]/np.pi, 2)}] pi, v_ref = {self.v_ref}'
         fig.update_layout(title_text=title)
         fig.update_xaxes(title_text="Position x [m]", row=1, col=1)

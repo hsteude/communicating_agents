@@ -13,7 +13,7 @@ setup(
         'numpy',
         'scipy',
         'loguru'],
-    extras_require={'plotting': ['matplotlib', 'jupyter', 'plotly']},
+    extras_require={'plotting': ['matplotlib', 'jupyter', 'plotly', 'interact']},
     setup_requires=['pytest-runner', 'flake8'],
     tests_require=['pytest']
 )
