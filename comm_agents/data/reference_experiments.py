@@ -91,7 +91,8 @@ class RefExperimentMass():
 class RefExperimentCharge():
 
     def __init__(self, m=[2e-12, 1e-12], q=[3e-9, -4e-9], m_ref=2e-12, v_ref=1,
-                 q_ref=-1e-12, d=.1, N=100, phi=[0, 0], dt=.1, is_golf_game=True, **kwargs):
+                 q_ref=-1e-12, d=.1, N=100, phi=[0, 0], dt=.1, is_golf_game=True,
+                 y_cap=True, **kwargs):
         self.m = np.array(m)
         self.q = np.array(q)
         self.dt = dt
@@ -104,6 +105,7 @@ class RefExperimentCharge():
         self.N = N
         self.is_golf_game = is_golf_game
         self.set_initial_state()
+        self.y_cap = y_cap
 
     def set_initial_state(self):
         self.t = 0
@@ -161,12 +163,11 @@ class RefExperimentCharge():
         # update time
         self.t += self.dt
 
-        # for i in range(len(self.m)):
-            # if self.y[i] < 0:  # this should not happen, propably the ref. par.
-                # self.x[i] = self.x_ref
-                # self.y[i] = self.y_ref
-                # logger.warning(f'Particle {i} hit the reference particle,'
-                               # ' this is not a valid example')
+        if self.y_cap:
+            for i in range(len(self.m)):
+                if self.y[i] < 0:  # this should not happen, propably the ref. par.
+                    self.x[i] = self.x_ref + .001 #avoiding division by zero
+                    self.y[i] = self.y_ref + .001
 
     def run(self):
         for i in range(self.N):
