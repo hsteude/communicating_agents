@@ -3,6 +3,7 @@ import numpy as np
 
 K_E = 8.99e9  # Coulomb constant
 G = 9.81  # Gravety constant
+TOLERANCE = .1 
 
 
 class RefExperimentMass():
@@ -48,7 +49,7 @@ class RefExperimentMass():
     def _update_position(self):
         # update position
         self.x += self.v_x * self.dt
-        self.z += self.v_z * self.dt + .5 * self.g * self.dt**2
+        self.z += self.v_z * self.dt - .5 * self.g * self.dt**2
         # update time
         self.t += self.dt
 
@@ -62,6 +63,37 @@ class RefExperimentMass():
             self._update_velocity()
             self._update_position()
             self.t += self.dt
+
+    def check_for_hole_in_one(self, golf_hole_loc):
+        min = golf_hole_loc - TOLERANCE * golf_hole_loc
+        max = golf_hole_loc + TOLERANCE * golf_hole_loc
+
+        zero_cross_0 = np.where(np.diff(np.sign(self.z_series[:, 0])))[0]
+        zero_cross_1 = np.where(np.diff(np.sign(self.z_series[:, 1])))[0]
+
+        # ignore zero corssing at indx 0
+        zero_cross_0 = [z for z in zero_cross_0 if z > 0]
+        zero_cross_1 = [z for z in zero_cross_1 if z > 0]
+        # check of one of the points arround zc or their avg is in bounds
+        hio0, hio1 = False, False
+        if zero_cross_0:
+            bevore0 = self.x_series[zero_cross_0[0]][0]
+            after0 = self.x_series[zero_cross_0[0] + 1][0]
+            mean0 = np.mean([bevore0, after0])
+            hio0 = any([min < val < max for val in [bevore0, after0, mean0]])
+
+        if zero_cross_1:
+            bevore1 = self.x_series[zero_cross_1[0]][1]
+            after1 = self.x_series[zero_cross_1[0] + 1][1]
+            mean1 = np.mean([bevore1, after1])
+            hio1 = any([min < val < max for val in [bevore1, after1, mean1]])
+
+        return hio0, hio1
+
+
+
+
+        
 
     def visualize(self, golf_hole_loc=20):
         from plotly.subplots import make_subplots
@@ -186,6 +218,32 @@ class RefExperimentCharge():
             self.last_a_y = self.a_y
             self.t += self.dt
 
+    def check_for_hole_in_one(self, golf_hole_loc):
+        min = golf_hole_loc - TOLERANCE * golf_hole_loc
+        max = golf_hole_loc + TOLERANCE * golf_hole_loc
+
+        zero_cross_0 = np.where(np.diff(np.sign(self.x_series[:, 0])))[0]
+        zero_cross_1 = np.where(np.diff(np.sign(self.x_series[:, 1])))[0]
+
+        # ignore zero corssing at indx 0
+        zero_cross_0 = [x for x in zero_cross_0 if x > 0]
+        zero_cross_1 = [x for x in zero_cross_1 if x > 0]
+        # check of one of the points arround zc or their avg is in bounds
+        hio0, hio1 = False, False
+        if zero_cross_0:
+            bevore0 = self.y_series[zero_cross_0[0]][0]
+            after0 = self.y_series[zero_cross_0[0] + 1][0]
+            mean0 = np.mean([bevore0, after0])
+            hio0 = any([min < val < max for val in [bevore0, after0, mean0]])
+
+        if zero_cross_1:
+            bevore1 = self.y_series[zero_cross_1[0]][1]
+            after1 = self.y_series[zero_cross_1[0] + 1][1]
+            mean1 = np.mean([bevore1, after1])
+            hio1 = any([min < val < max for val in [bevore1, after1, mean1]])
+
+        return hio0, hio1
+
     def visualize(self, golf_hole_loc):
         from plotly.subplots import make_subplots
         import plotly.graph_objects as go
@@ -216,3 +274,25 @@ class RefExperimentCharge():
         fig.update_xaxes(title_text="Position x [m]", row=1, col=1)
         fig.update_yaxes(title_text="Position y [m]", row=1, col=1)
         fig.show()
+
+
+if __name__ == '__main__':
+    GOLF_HOLE_LOC_M = 0.1
+    GOLF_HOLE_LOC_C = .1
+    PARAM_DICT = dict(
+        m=[1e-20, 1e-20],
+        q=[1e-16, -1e-15],
+        m_ref=2e-20,
+        v_ref=1,
+        N=100,
+        alpha=[.1 * np.pi, .3 * np.pi],
+        phi=[.6 * np.pi, .54 * np.pi],
+        dt=.01,
+        d=.1,
+        gravity=True)
+    rem = RefExperimentMass(**PARAM_DICT)
+    rem.run()
+    rem.check_for_hole_in_one(GOLF_HOLE_LOC_M)
+    req = RefExperimentCharge(**PARAM_DICT)
+    req.run()
+    req.check_for_hole_in_one(GOLF_HOLE_LOC_C)

@@ -7,7 +7,7 @@ GOLF_HOLE_LOC_M = .1
 GOLF_HOLE_LOC_C = .1
 PENALTY_VALUE = 100
 INITIAL_GUESS_M = [0.01 * np.pi, 0.01 * np.pi]
-INITIAL_GUESS_C = [0.5001 * np.pi, 0.5001 * np.pi]
+INITIAL_GUESS_C = [0.501 * np.pi, 0.501 * np.pi]
 THRES = .01
 ALPHA_BOUNDS = [(0.01, .5 * np.pi)]*2
 PHI_BOUNDS = [(0.501 * np.pi, .999 * np.pi)]*2
@@ -31,7 +31,7 @@ def golf_loss(angle, exp, objective, golf_hole_loc):
     exp.set_initial_state()
     exp.angle = angle
     exp.run()
-    return np.sum([objective(i=i, exp=exp, golf_hole_loc=golf_hole_loc)
+    return np.mean([objective(i=i, exp=exp, golf_hole_loc=golf_hole_loc)
                    for i in [0, 1]])
 
 
@@ -41,12 +41,12 @@ def get_alpha_star(exp):
         INITIAL_GUESS_M,
         args=(exp, get_single_mass_loss_value, GOLF_HOLE_LOC_M),
         bounds=ALPHA_BOUNDS)
-    opt_val = golf_loss(
-        alpha_star.x, exp, get_single_mass_loss_value, GOLF_HOLE_LOC_M)
-    print((opt_val, alpha_star.x/np.pi))
-    # if opt_val < THRES:
-        # return alpha_star
-    return alpha_star
+    if alpha_star.success:
+        opt_val = golf_loss(
+            alpha_star.x, exp, get_single_mass_loss_value, GOLF_HOLE_LOC_M)
+        return alpha_star.x, opt_val
+    else:
+        logger.warning('Alpha optimization did not succeed')
 
 
 def get_phi_star(exp):
@@ -55,7 +55,9 @@ def get_phi_star(exp):
         INITIAL_GUESS_C,
         args=(exp, get_single_charge_loss_value, GOLF_HOLE_LOC_C),
         bounds=PHI_BOUNDS)
-    opt_val = golf_loss(
-        phi_star.x, exp, get_single_charge_loss_value, GOLF_HOLE_LOC_C)
-    if opt_val < THRES:
-        return phi_star.x
+    if phi_star.success:
+        opt_val = golf_loss(
+            phi_star.x, exp, get_single_charge_loss_value, GOLF_HOLE_LOC_C)
+        return phi_star.x, opt_val
+    else:
+        logger.warning('Alpha optimization did not succeed')
