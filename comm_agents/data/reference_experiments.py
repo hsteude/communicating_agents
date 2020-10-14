@@ -79,9 +79,9 @@ class RefExperimentMass():
         fig.add_trace(trace_pp1, row=1, col=1)
         fig.add_trace(trace_pp2, row=1, col=1)
         fig.add_trace(trace_golf_hole, row=1, col=1)
-        title = f'RE1: m_ref = {self.m_ref} kg, m = {self.m} kg'\
-            f' angle = [{round(self.angle[0]/np.pi, 2)} '\
-            f'{round(self.angle[1]/np.pi, 2)}] pi, v_ref = {self.v_ref}'
+        title = \
+            f'Ref. experiement 2. Alpha1: {round(self.angle[0] / np.pi, 2)}'\
+            f' pi, Alpha2: {round(self.angle[1] / np.pi, 2)} pi'
         fig.update_layout(title_text=title)
         fig.update_xaxes(title_text="Position x [m]", row=1, col=1)
         fig.update_yaxes(title_text="Position z [m]", row=1, col=1)
@@ -165,8 +165,9 @@ class RefExperimentCharge():
 
         if self.y_cap:
             for i in range(len(self.m)):
-                if self.y[i] < 0:  # this should not happen, propably the ref. par.
-                    self.x[i] = self.x_ref + .001 #avoiding division by zero
+                # this should not happen, propably the ref. par.
+                if self.y[i] < 0:
+                    self.x[i] = self.x_ref + .001  # avoiding division by zero
                     self.y[i] = self.y_ref + .001
 
     def run(self):
@@ -208,10 +209,9 @@ class RefExperimentCharge():
         fig.add_trace(trace_pp2, row=1, col=1)
         fig.add_trace(trace_p_ref, row=1, col=1)
         fig.add_trace(trace_golf_hole, row=1, col=1)
-        title = f'RE2: m_ref = {self.m_ref} kg, m = {self.m} kg'\
-            f' angle = [{round(self.angle[0]/np.pi, 2)} '\
-            f'{round(self.angle[1]/np.pi, 2)}] pi, v_ref = {self.v_ref}'\
-            f', q = {self.q}'
+        title = \
+            f'Ref. experiement 2. Phi1: {round(self.angle[0] / np.pi, 2)}'\
+            f' pi, Phi2: {round(self.angle[1] / np.pi, 2)} pi'
         fig.update_layout(title_text=title)
         fig.update_xaxes(title_text="Position x [m]", row=1, col=1)
         fig.update_yaxes(title_text="Position y [m]", row=1, col=1)
