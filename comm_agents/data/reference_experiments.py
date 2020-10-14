@@ -3,17 +3,16 @@ import numpy as np
 
 K_E = 8.99e9  # Coulomb constant
 G = 9.81  # Gravety constant
-TOLERANCE = .1 
 
 
 class RefExperimentMass():
 
-    def __init__(self, m=[2e-12, 1e-12], m_ref=2e-12, v_ref=1, N=100,
+    def __init__(self, m=[2e-12, 1e-12], m_ref_m=2e-12, v_ref_m=1, N=100,
                  alpha=[0, 0], dt=.1, gravity=True, **kwargs):
         self.m = np.array(m)
         self.dt = dt
-        self.m_ref = m_ref
-        self.v_ref = v_ref
+        self.m_ref = m_ref_m
+        self.v_ref = v_ref_m
         self.angle = np.array(alpha)
         self.N = N
         self.g = G if gravity else 0
@@ -64,9 +63,9 @@ class RefExperimentMass():
             self._update_position()
             self.t += self.dt
 
-    def check_for_hole_in_one(self, golf_hole_loc):
-        min = golf_hole_loc - TOLERANCE * golf_hole_loc
-        max = golf_hole_loc + TOLERANCE * golf_hole_loc
+    def check_for_hole_in_one(self, golf_hole_loc=.1, tolerance=.1):
+        min = golf_hole_loc - tolerance * golf_hole_loc
+        max = golf_hole_loc + tolerance * golf_hole_loc
 
         zero_cross_0 = np.where(np.diff(np.sign(self.z_series[:, 0])))[0]
         zero_cross_1 = np.where(np.diff(np.sign(self.z_series[:, 1])))[0]
@@ -90,12 +89,7 @@ class RefExperimentMass():
 
         return hio0, hio1
 
-
-
-
-        
-
-    def visualize(self, golf_hole_loc=20):
+    def visualize(self, golf_hole_loc=20, tolerance=.1):
         from plotly.subplots import make_subplots
         import plotly.graph_objects as go
         fig = make_subplots(rows=1, cols=1)
@@ -104,8 +98,8 @@ class RefExperimentMass():
         trace_pp2 = go.Scatter(x=self.x_series[:, 1], y=self.z_series[:, 1],
                                name='Particle 2', mode='lines+markers')
         trace_golf_hole = go.Scatter(
-            x=[golf_hole_loc - .1 * golf_hole_loc,
-                golf_hole_loc + .1 * golf_hole_loc],
+            x=[golf_hole_loc - tolerance * golf_hole_loc,
+                golf_hole_loc + tolerance * golf_hole_loc],
             y=[0, 0],
             name='Golf hole')
         fig.add_trace(trace_pp1, row=1, col=1)
@@ -122,14 +116,14 @@ class RefExperimentMass():
 
 class RefExperimentCharge():
 
-    def __init__(self, m=[2e-12, 1e-12], q=[3e-9, -4e-9], m_ref=2e-12, v_ref=1,
-                 q_ref=-1e-12, d=.1, N=100, phi=[0, 0], dt=.1, is_golf_game=True,
-                 y_cap=True, **kwargs):
+    def __init__(self, m=[2e-12, 1e-12], q=[3e-9, -4e-9], m_ref_c=2e-12,
+                 v_ref_c=1, q_ref=-1e-12, d=.1, N=100, phi=[0, 0],
+                 dt=.1, is_golf_game=True, y_cap=True, **kwargs):
         self.m = np.array(m)
         self.q = np.array(q)
         self.dt = dt
-        self.m_ref = m_ref
-        self.v_ref = v_ref
+        self.m_ref = m_ref_c
+        self.v_ref = v_ref_c
         self.q_ref = np.array([q_ref]*2)
         self.x_ref = d
         self.y_ref = 0
@@ -218,9 +212,9 @@ class RefExperimentCharge():
             self.last_a_y = self.a_y
             self.t += self.dt
 
-    def check_for_hole_in_one(self, golf_hole_loc):
-        min = golf_hole_loc - TOLERANCE * golf_hole_loc
-        max = golf_hole_loc + TOLERANCE * golf_hole_loc
+    def check_for_hole_in_one(self, golf_hole_loc=.1, tolerance=.1):
+        min = golf_hole_loc - tolerance * golf_hole_loc
+        max = golf_hole_loc + tolerance * golf_hole_loc
 
         zero_cross_0 = np.where(np.diff(np.sign(self.x_series[:, 0])))[0]
         zero_cross_1 = np.where(np.diff(np.sign(self.x_series[:, 1])))[0]
@@ -244,7 +238,7 @@ class RefExperimentCharge():
 
         return hio0, hio1
 
-    def visualize(self, golf_hole_loc):
+    def visualize(self, golf_hole_loc=.1, tolerance=.1):
         from plotly.subplots import make_subplots
         import plotly.graph_objects as go
         fig = make_subplots(rows=1, cols=1)
@@ -255,13 +249,12 @@ class RefExperimentCharge():
                                name='Particle 2', mode='lines+markers',
                                opacity=0.5)
         trace_p_ref = go.Scatter(
-            x=[self.x_ref - .001 * self.x_ref,
-                self.x_ref + .001 * self.x_ref],
+            x=[self.x_ref, self.x_ref],
             y=[0, 0],
             name='Reference particle')
         trace_golf_hole = go.Scatter(x=[0, 0],
-                                     y=[golf_hole_loc - .1 * golf_hole_loc,
-                                        golf_hole_loc + .1 * golf_hole_loc],
+                                     y=[golf_hole_loc - tolerance * golf_hole_loc,
+                                        golf_hole_loc + tolerance * golf_hole_loc],
                                      name='Golf hole')
         fig.add_trace(trace_pp1, row=1, col=1)
         fig.add_trace(trace_pp2, row=1, col=1)
