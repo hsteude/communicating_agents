@@ -117,14 +117,14 @@ class RefExperimentMass():
 class RefExperimentCharge():
 
     def __init__(self, m=[2e-12, 1e-12], q=[3e-9, -4e-9], m_ref_c=2e-12,
-                 v_ref_c=1, q_ref=-1e-12, d=.1, N=100, phi=[0, 0],
+                 v_ref_c=1, q_ref=[-1e-17, 1e-17], d=.1, N=100, phi=[0, 0],
                  dt=.1, is_golf_game=True, y_cap=True, **kwargs):
         self.m = np.array(m)
         self.q = np.array(q)
         self.dt = dt
         self.m_ref = m_ref_c
         self.v_ref = v_ref_c
-        self.q_ref = np.array([q_ref]*2)
+        self.q_ref = np.array(q_ref)
         self.x_ref = d
         self.y_ref = 0
         self.angle = np.array(phi)
@@ -275,8 +275,10 @@ if __name__ == '__main__':
     PARAM_DICT = dict(
         m=[1e-20, 1e-20],
         q=[1e-16, -1e-15],
-        m_ref=2e-20,
-        v_ref=1,
+        m_ref_m=2e-20,
+        v_ref_m=1,
+        m_ref_c=0,
+        v_ref_c=0,
         N=100,
         alpha=[.1 * np.pi, .3 * np.pi],
         phi=[.6 * np.pi, .54 * np.pi],
