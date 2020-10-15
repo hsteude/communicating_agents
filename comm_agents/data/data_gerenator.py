@@ -4,8 +4,9 @@ from comm_agents.data.optimal_answers import (get_alpha_star,
                                               get_phi_star)
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
 from joblib import Parallel, delayed
+import joblib
+from loguru import logger
 
 SAMPLE_SIZE_OPT = 100
 DT_OPT = .001
@@ -93,45 +94,41 @@ class DataGenerator():
             phi_star, loss1, req_opt.check_for_hole_in_one(
             golf_hole_loc=GOLF_HOLE_LOC_C, tolerance=TOLERANCE))
 
-    def _update_data_set(self, m, q, o0, o1, qa, qb, a0, a1):
-        self.data_set['observations_0'].append(o0)
-        self.data_set['observations_1'].append(o1)
-        self.data_set['questions_a'].append(qa)
-        self.data_set['questions_b'].append(qb)
-        self.data_set['opt_answers_a'].append(a0)
-        self.data_set['opt_answers_b'].append(a1)
-        self.data_set['hidden_states'].append(np.array([m, q]))
-
-    def trans_data_set_to_tabular(self):
-        df_hs = pd.DataFrame(
-            [x.ravel() for x in self.data_set['hidden_states']],
-            columns=['m0', 'm1', 'q0', 'q1'])
+    def trans_data_set_to_tabular(self, data):
+        # m, q, o0, o1, qa, qb, a0, a1
+        data = [d for d in data if d]
+        df_m = pd.DataFrame(
+            [x.ravel() for x in [d[0] for d in data]],
+            columns=['m0', 'm1'])
+        df_q = pd.DataFrame(
+            [x.ravel() for x in [d[1] for d in data]],
+            columns=['q0', 'q1'])
         df_o0_0 = pd.DataFrame(
-            [o[:, 0] for o in dg.data_set['observations_0']],
+            [o[:, 0] for o in [d[2] for d in data]],
             columns=[f'o0_0_{i}' for i in range(self.param_dict['N'])])
         df_o0_1 = pd.DataFrame(
-            [o[:, 1] for o in dg.data_set['observations_0']],
+            [o[:, 1] for o in [d[2] for d in data]],
             columns=[f'o0_1_{i}' for i in range(self.param_dict['N'])])
         df_o1_0 = pd.DataFrame(
-            [o[:, 0] for o in dg.data_set['observations_1']],
+            [o[:, 0] for o in [d[3] for d in data]],
             columns=[f'o1_0_{i}' for i in range(self.param_dict['N'])])
         df_o1_1 = pd.DataFrame(
-            [o[:, 1] for o in dg.data_set['observations_1']],
+            [o[:, 1] for o in [d[3] for d in data]],
             columns=[f'o1_1_{i}' for i in range(self.param_dict['N'])])
         df_qa = pd.DataFrame(
-            dg.data_set['questions_a'], columns=['m_ref_a', 'v_ref_a'])
+            [d[4] for d in data], columns=['m_ref_a', 'v_ref_a'])
         df_qb = pd.DataFrame(
-            dg.data_set['questions_a'], columns=['m_ref_b', 'v_ref_b'])
+            [d[5] for d in data], columns=['m_ref_b', 'v_ref_b'])
         df_oa_a = pd.DataFrame(
-            dg.data_set['opt_answers_a'],
+            [d[6] for d in data],
             columns=['alpha_star0', 'alpha_star1'])
         df_oa_b = pd.DataFrame(
-            dg.data_set['opt_answers_b'], columns=['phi_star0', 'phi_star1'])
-        return pd.concat([df_hs, df_o0_0, df_o0_1, df_o1_0, df_o1_1, df_oa_a,
+            [d[7] for d in data], columns=['phi_star0', 'phi_star1'])
+        return pd.concat([df_m, df_q, df_o0_0, df_o0_1, df_o1_0, df_o1_1, df_oa_a,
                           df_oa_b, df_qa, df_qb], axis=1)
 
     def generate(self):
-        for _ in tqdm(range(self.sample_size)):
+        def _in_parralel(self):
             m, q, v_ref = self._get_random_experimental_setting()
             o0, o1 = self._run_reference_experiments(m, q, v_ref)
             qa, qb = self._get_questions(v_ref)
@@ -139,8 +136,15 @@ class DataGenerator():
                 m, q, v_ref)
             if all([lo < TOLERANCE for lo in [loss0, loss1]]) \
                     and all([hio0[0], hio0[1], hio1[0], hio1[1]]):
-                self._update_data_set(m, q, o0, o1, qa, qb, a0, a1)
-        df = self.trans_data_set_to_tabular()
+                return m, q, o0, o1, qa, qb, a0, a1
+        logger.debug(f'Started sampling reference experiments in parallel in'
+                     f' {joblib.cpu_count()} processes')
+        data = Parallel(n_jobs=-1)(delayed(_in_parralel)(self)
+                                   for _ in range(self.sample_size))
+        data = [d for d in data if d]
+        logger.debug(f'Sucessfully computed {len(data)} of {self.sample_size}'
+                     f' experimental settings')
+        df = self.trans_data_set_to_tabular(data)
         return df
 
 
@@ -152,3 +156,4 @@ if __name__ == '__main__':
 
     df = dg.generate()
     df.to_csv(PATH, index=False)
+    logger.debug(f'Sucessfully wrote data frame to: {PATH}')
