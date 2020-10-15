@@ -3,6 +3,7 @@ import numpy as np
 
 K_E = 8.99e9  # Coulomb constant
 G = 9.81  # Gravety constant
+GOLF_TOLERANCE = .1
 
 
 class RefExperimentMass():
@@ -123,13 +124,13 @@ class RefExperimentCharge():
         self.q = np.array(q)
         self.dt = dt
         self.m_ref = m_ref_c
-        self.v_ref = v_ref_c
         self.q_ref = np.array(q_ref)
         self.x_ref = d
         self.y_ref = 0
         self.angle = np.array(phi)
         self.N = N
         self.is_golf_game = is_golf_game
+        self.v_ref = v_ref_c if self.is_golf_game else 0
         self.set_initial_state()
         self.y_cap = y_cap
 
