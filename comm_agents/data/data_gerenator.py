@@ -149,7 +149,7 @@ class DataGenerator():
 
 
 if __name__ == '__main__':
-    SAMPLE_SIZE = 1000
+    SAMPLE_SIZE = 10000
     PATH = 'data/reference_experiment_dat.csv'
     dg = DataGenerator(PARAM_DICT, SAMPLE_SIZE, M_RANGES, Q0_RANGE, Q1_RANGE,
                        V_REF_RANGE)
