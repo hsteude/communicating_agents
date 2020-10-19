@@ -7,12 +7,13 @@ import pandas as pd
 from joblib import Parallel, delayed
 import joblib
 from loguru import logger
+from tqdm import tqdm
 
-SAMPLE_SIZE_OPT = 100
+SAMPLE_SIZE_OPT = 1000
 DT_OPT = .001
 GOLF_HOLE_LOC_M = .1
 GOLF_HOLE_LOC_C = .1
-TOLERANCE = .1
+TOLERANCE = .01
 PARAM_DICT = dict(
     m=[1e-20, 1e-20],
     q=[1e-16, -1e-15],
@@ -52,33 +53,33 @@ class DataGenerator():
             opt_answers_b=[],
             hidden_states=[]
         )
-        np.random.seed(124)
+        np.random.seed(10000)
 
     def _get_random_experimental_setting(self):
         m = np.random.uniform(*self.m_range, 2)
         q0 = np.random.uniform(*self.q0_range, 1)
         q1 = np.random.uniform(*self.q1_range, 1)
-        v_ref = np.random.uniform(*self.v_ref_range, 2)
-        return m, np.array([q0, q1]).ravel(), v_ref
+        v_ref_a, v_ref_b = np.random.uniform(*self.v_ref_range, 2)
+        return m, np.array([q0, q1]).ravel(), v_ref_a, v_ref_b
 
-    def _run_reference_experiments(self, m, q, v_ref):
-        self.param_dict.update(m=m, q=q, v_ref_m=v_ref[0], v_ref_c=v_ref[1])
+    def _run_reference_experiments(self, m, q, v_ref_a, v_ref_b):
+        self.param_dict.update(m=m, q=q, v_ref_m=v_ref_a, v_ref_c=v_ref_b)
         rem = RefExperimentMass(**self.param_dict)
         req = RefExperimentCharge(**self.param_dict)
         rem.run()
         req.run()
         return rem.x_series, req.x_series
 
-    def _get_questions(self, v_ref):
-        qa0 = (self.param_dict['m_ref_m'], v_ref[0])
-        qa1 = (self.param_dict['m_ref_c'], v_ref[1])
+    def _get_questions(self, v_ref_a, v_ref_b):
+        qa0 = (self.param_dict['m_ref_m'], v_ref_a)
+        qa1 = (self.param_dict['m_ref_c'], v_ref_b)
         return qa0, qa1
 
-    def _get_optimal_answers(self, m, q, v_ref):
+    def _get_optimal_answers(self, m, q, v_ref_a, v_ref_b):
         rem_opt = RefExperimentMass(**self.param_dict)
         req_opt = RefExperimentCharge(**self.param_dict)
         req_opt.is_golf_game = True
-        req_opt.v_ref = v_ref[0]
+        req_opt.v_ref = v_ref_b
         rem_opt.N = req_opt.N = SAMPLE_SIZE_OPT
         rem_opt.dt = req_opt.dt = DT_OPT
         alpha_star, loss0 = get_alpha_star(rem_opt)
@@ -95,7 +96,7 @@ class DataGenerator():
             golf_hole_loc=GOLF_HOLE_LOC_C, tolerance=TOLERANCE))
 
     def trans_data_set_to_tabular(self, data):
-        # m, q, o0, o1, qa, qb, a0, a1
+        # m, q, o_a, o_b, q_a, q_b, a_a, a_b
         data = [d for d in data if d]
         df_m = pd.DataFrame(
             [x.ravel() for x in [d[0] for d in data]],
@@ -103,44 +104,58 @@ class DataGenerator():
         df_q = pd.DataFrame(
             [x.ravel() for x in [d[1] for d in data]],
             columns=['q0', 'q1'])
-        df_o0_0 = pd.DataFrame(
+        df_o_a_0 = pd.DataFrame(
             [o[:, 0] for o in [d[2] for d in data]],
-            columns=[f'o0_0_{i}' for i in range(self.param_dict['N'])])
-        df_o0_1 = pd.DataFrame(
+            columns=[f'o_a_0_{i}' for i in range(self.param_dict['N'])])
+        df_o_a_1 = pd.DataFrame(
             [o[:, 1] for o in [d[2] for d in data]],
-            columns=[f'o0_1_{i}' for i in range(self.param_dict['N'])])
-        df_o1_0 = pd.DataFrame(
+            columns=[f'o_a_1_{i}' for i in range(self.param_dict['N'])])
+        df_o_b_0 = pd.DataFrame(
             [o[:, 0] for o in [d[3] for d in data]],
-            columns=[f'o1_0_{i}' for i in range(self.param_dict['N'])])
-        df_o1_1 = pd.DataFrame(
+            columns=[f'o_b_0_{i}' for i in range(self.param_dict['N'])])
+        df_o_b_1 = pd.DataFrame(
             [o[:, 1] for o in [d[3] for d in data]],
-            columns=[f'o1_1_{i}' for i in range(self.param_dict['N'])])
-        df_qa = pd.DataFrame(
+            columns=[f'o_b_1_{i}' for i in range(self.param_dict['N'])])
+        df_q_a = pd.DataFrame(
             [d[4] for d in data], columns=['m_ref_a', 'v_ref_a'])
-        df_qb = pd.DataFrame(
+        df_q_b = pd.DataFrame(
             [d[5] for d in data], columns=['m_ref_b', 'v_ref_b'])
         df_oa_a = pd.DataFrame(
             [d[6] for d in data],
             columns=['alpha_star0', 'alpha_star1'])
         df_oa_b = pd.DataFrame(
             [d[7] for d in data], columns=['phi_star0', 'phi_star1'])
-        return pd.concat([df_m, df_q, df_o0_0, df_o0_1, df_o1_0, df_o1_1, df_oa_a,
-                          df_oa_b, df_qa, df_qb], axis=1)
+        return pd.concat([df_m, df_q, df_o_a_0, df_o_a_1, df_o_b_0, df_o_b_1,
+                          df_q_a, df_q_b, df_oa_a, df_oa_b], axis=1)
 
-    def generate(self):
-        def _in_parralel(self):
-            m, q, v_ref = self._get_random_experimental_setting()
-            o0, o1 = self._run_reference_experiments(m, q, v_ref)
-            qa, qb = self._get_questions(v_ref)
-            a0, loss0, hio0, a1, loss1, hio1 = self._get_optimal_answers(
-                m, q, v_ref)
-            if all([lo < TOLERANCE for lo in [loss0, loss1]]) \
-                    and all([hio0[0], hio0[1], hio1[0], hio1[1]]):
-                return m, q, o0, o1, qa, qb, a0, a1
-        logger.debug(f'Started sampling reference experiments in parallel in'
-                     f' {joblib.cpu_count()} processes')
-        data = Parallel(n_jobs=-1)(delayed(_in_parralel)(self)
-                                   for _ in range(self.sample_size))
+    def generate(self, parallel=True, njobs=6):
+        def _in_parallel(self):
+            try:
+                m, q, v_ref_a, v_ref_b = self._get_random_experimental_setting()
+                o_a, o_b = self._run_reference_experiments(
+                    m, q, v_ref_a, v_ref_b)
+                q_a, q_b = self._get_questions(v_ref_a, v_ref_b)
+                a_a, loss_a, hio_a, a_b, loss_b, hio_b = self._get_optimal_answers(
+                    m, q, v_ref_a, v_ref_b)
+                if all([lo < TOLERANCE for lo in [loss_a, loss_b]]) \
+                        and all([hio_a[0], hio_a[1], hio_b[0], hio_b[1]]):
+                    return m, q, o_a, o_b, q_a, q_b, a_a, a_b
+            except TypeError:
+                logger.debug(f'Optimization failed for combination'
+                             f' m: {m}, q: {q}, v_ref: {v_ref_a}, {v_ref_b}')
+        if parallel:
+            data = []
+            logger.debug(f'Started sampling reference experiments in parallel in'
+                         f' {njobs} processes')
+            for _ in tqdm(range(int(self.sample_size/BATCH_SIZE))):
+                d = Parallel(n_jobs=njobs)(delayed(_in_parallel)(self)
+                                           for _ in range(BATCH_SIZE))
+                data.extend(d)
+        else:
+            logger.debug('Started sampling reference experiments in parallel in'
+                         ' 1 processes')
+            data = [_in_parallel(self) for _ in tqdm(range(self.sample_size))]
+        breakpoint()
         data = [d for d in data if d]
         logger.debug(f'Sucessfully computed {len(data)} of {self.sample_size}'
                      f' experimental settings')
@@ -149,11 +164,12 @@ class DataGenerator():
 
 
 if __name__ == '__main__':
-    SAMPLE_SIZE = 10000
-    PATH = 'data/reference_experiment_dat.csv'
+    SAMPLE_SIZE = 5000 
+    BATCH_SIZE = 36
+    PATH = 'data/reference_experiment_dat_1000_new_new_new3.csv'
     dg = DataGenerator(PARAM_DICT, SAMPLE_SIZE, M_RANGES, Q0_RANGE, Q1_RANGE,
                        V_REF_RANGE)
 
-    df = dg.generate()
+    df = dg.generate(parallel=True, njobs=6)
     df.to_csv(PATH, index=False)
     logger.debug(f'Sucessfully wrote data frame to: {PATH}')

@@ -1,4 +1,9 @@
 models/*
+!models/.gitkeep
+figures/data_generation/*
+!figures/data_generation/.gitkeep
+figures/training/*
+!figures/training/.gitkeep
 
 
 # Byte-compiled / optimized / DLL files

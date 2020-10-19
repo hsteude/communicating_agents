@@ -5,15 +5,30 @@ import numpy as np
 import math
 import pandas as pd
 
-PATH = 'data/reference_experiment_dat.csv'
+PATH = 'data/reference_experiment_dat_1000_new_new_new2.csv'
 
 
 class RefExpDataset(Dataset):
 
     def __init__(self):
+        # TODO: Clean up this mess!
         # read with pandas
         df = pd.read_csv(PATH, dtype=np.float32)
         self.n_samples = len(df)
+
+        # observation scalling
+        exp_a_part_0_cols = [c for c in df.columns if 'o_a_0' in c]
+        df.loc[:, exp_a_part_0_cols] = df[exp_a_part_0_cols] / \
+            df[exp_a_part_0_cols].max().max()
+        exp_a_part_1_cols = [c for c in df.columns if 'o_a_1' in c]
+        df.loc[:, exp_a_part_1_cols] = df[exp_a_part_1_cols] / \
+            df[exp_a_part_1_cols].max().max()
+        exp_b_part_0_cols = [c for c in df.columns if 'o_b_0' in c]
+        df.loc[:, exp_b_part_0_cols] = df[exp_b_part_0_cols] / \
+            df[exp_b_part_0_cols].max().max()
+        exp_b_part_1_cols = [c for c in df.columns if 'o_b_1' in c]
+        df.loc[:, exp_b_part_1_cols] = df[exp_b_part_1_cols] / \
+            df[exp_b_part_1_cols].min().min()
 
         # define attributes
         self.hidden_states = torch.from_numpy(
@@ -23,13 +38,14 @@ class RefExpDataset(Dataset):
             df[[c for c in df.columns if 'o' in c]].values)
 
         self.questions = torch.from_numpy(
-                df[['m_ref_a', 'v_ref_a', 'm_ref_b', 'v_ref_b']].values)
+            df[['m_ref_a', 'v_ref_a', 'm_ref_b', 'v_ref_b']].values)
 
         self.opt_answers = torch.from_numpy(
             df[['alpha_star0', 'alpha_star1',
                 'phi_star0', 'phi_star1']].values)
 
     # support indexing such that dataset[i] can be used to get i-th sample
+
     def __getitem__(self, index):
         return (self.hidden_states[index], self.observations[index],
                 self.questions[index], self.opt_answers[index])

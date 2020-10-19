@@ -107,7 +107,7 @@ class RefExperimentMass():
         fig.add_trace(trace_pp2, row=1, col=1)
         fig.add_trace(trace_golf_hole, row=1, col=1)
         title = \
-            f'Ref. experiement 2. Alpha1: {round(self.angle[0] / np.pi, 2)}'\
+            f'Ref. experiement A. Alpha1: {round(self.angle[0] / np.pi, 2)}'\
             f' pi, Alpha2: {round(self.angle[1] / np.pi, 2)} pi'
         fig.update_layout(title_text=title)
         fig.update_xaxes(title_text="Position x [m]", row=1, col=1)
