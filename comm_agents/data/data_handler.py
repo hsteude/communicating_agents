@@ -6,6 +6,8 @@ import math
 import pandas as pd
 
 PATH = 'data/reference_experiment_dat_1000_new_new_new2.csv'
+PATH2 = 'data/reference_experiment_dat_1000_new_new_new3.csv'
+PATH3 = 'data/reference_experiment_dat_1000_new_new_new4.csv'
 
 
 class RefExpDataset(Dataset):
@@ -14,6 +16,9 @@ class RefExpDataset(Dataset):
         # TODO: Clean up this mess!
         # read with pandas
         df = pd.read_csv(PATH, dtype=np.float32)
+        df2 = pd.read_csv(PATH2, dtype=np.float32)
+        df3 = pd.read_csv(PATH3, dtype=np.float32)
+        df = pd.concat([df, df2, df3], axis=0)
         self.n_samples = len(df)
 
         # observation scalling

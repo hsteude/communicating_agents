@@ -1,5 +1,5 @@
 import torch
-from comm_agents.data.datahandler import RefExpDataset
+from comm_agents.data.data_handler import RefExpDataset
 from comm_agents.models.model_single_enc import SingleEncModel
 import pandas as pd
 import plotly.graph_objects as go
@@ -16,7 +16,7 @@ MODEL_PATH = './models/single_enc_model_2020-10-19.pt'
 
 dataset = RefExpDataset()
 model = SingleEncModel(observantion_size=dataset.observations.shape[1],
-                       lat_space_size=dataset.hidden_states.shape[1],
+                       lat_space_size=3,
                        question_size=2,
                        enc_num_hidden_layers=20,
                        enc_hidden_size=100,

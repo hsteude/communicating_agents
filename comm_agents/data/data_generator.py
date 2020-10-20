@@ -157,19 +157,19 @@ class DataGenerator():
             data = [_in_parallel(self) for _ in tqdm(range(self.sample_size))]
         breakpoint()
         data = [d for d in data if d]
-        logger.debug(f'Sucessfully computed {len(data)} of {self.sample_size}'
+        logger.debug(f'Successfully computed {len(data)} of {self.sample_size}'
                      f' experimental settings')
         df = self.trans_data_set_to_tabular(data)
         return df
 
 
 if __name__ == '__main__':
-    SAMPLE_SIZE = 5000 
+    SAMPLE_SIZE = 10000 
     BATCH_SIZE = 36
-    PATH = 'data/reference_experiment_dat_1000_new_new_new3.csv'
+    PATH = 'data/reference_experiment_dat_1000_new_new_new4.csv'
     dg = DataGenerator(PARAM_DICT, SAMPLE_SIZE, M_RANGES, Q0_RANGE, Q1_RANGE,
                        V_REF_RANGE)
 
     df = dg.generate(parallel=True, njobs=6)
     df.to_csv(PATH, index=False)
-    logger.debug(f'Sucessfully wrote data frame to: {PATH}')
+    logger.debug(f'Successfully wrote data frame to: {PATH}')

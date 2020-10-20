@@ -7,6 +7,52 @@ GOLF_TOLERANCE = .1
 
 
 class RefExperimentMass():
+    """
+    This class implements one reference mass experiment with two particles
+
+    Parameters
+    ----------
+    m : list of two floats
+        List holds the mass of particle 0 and 1 respectively 
+    m_ref : float
+        Mass of the reference particle
+    v_ref : float
+        Velocity of reference particle (before collision)
+    N : int
+        Number of simulation steps
+    alpha : list of two floats
+        Angles of the particles (between x-axis and v_ref vector)
+    dt : float
+        Time delta between two simulation steps
+    gravity : bool
+        Indicates whether gravity is applied or not
+    **kwargs
+        The keyword arguments are used for to that a comprehensive parameter dictionary
+        can be passed to the init 
+
+    Attributes
+    ----------
+    m : np.array
+    dt : float
+    m_ref : np.array
+    v_ref : float
+    angle : np.array
+    N : int
+    g : float
+    t : float
+        Value of last time in simulation
+    x : np.array
+        Current position of both particles in x direction
+    z : np.array
+        Current position of both particles in z direction
+    v_x : np.array
+        Current velocity of both particles in x direction
+    v_z : np.array
+        Current velocity of both particles in z direction
+    x,z,t,v_x, and v_z_seris : np.array 
+        Each hold the time series of the corresponding attributes within the simulation
+        Will be populated only when the run method is called
+    """
 
     def __init__(self, m=[2e-12, 1e-12], m_ref_m=2e-12, v_ref_m=1, N=100,
                  alpha=[0, 0], dt=.1, gravity=True, **kwargs):
@@ -116,6 +162,52 @@ class RefExperimentMass():
 
 
 class RefExperimentCharge():
+    """
+    This class implements one reference mass experiment with two particles
+
+    Parameters
+    ----------
+    m : list of two floats
+        List holds the mass of particle 0 and 1 respectively
+    m_ref : float
+        Mass of the reference particle
+    v_ref : float
+        Velocity of reference particle (before collision)
+    N : int
+        Number of simulation steps
+    alpha : list of two floats
+        Angles of the particles (between x-axis and v_ref vector)
+    dt : float
+        Time delta between two simulation steps
+    gravity : bool
+        Indicates whether gravity is applied or not
+    **kwargs
+        The keyword arguments are used for to that a comprehensive parameter
+        dictionary can be passed to the init
+
+    Attributes
+    ----------
+    m : np.array
+    dt : float
+    m_ref : np.array
+    v_ref : float
+    angle : np.array
+    N : int
+    g : float
+    t : float
+        Value of last time in simulation
+    x : np.array
+        Current position of both particles in x direction
+    z : np.array
+        Current position of both particles in z direction
+    v_x : np.array
+        Current velocity of both particles in x direction
+    v_z : np.array
+        Current velocity of both particles in z direction
+    x,z,t,v_x, and v_z_seris : np.array
+        Each hold the time series of the corresponding attributes within the
+        simulation. Will be populated only when the run method is called
+    """
 
     def __init__(self, m=[2e-12, 1e-12], q=[3e-9, -4e-9], m_ref_c=2e-12,
                  v_ref_c=1, q_ref=[-1e-17, 1e-17], d=.1, N=100, phi=[0, 0],

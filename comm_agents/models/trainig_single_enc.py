@@ -8,6 +8,8 @@ import numpy as np
 from datetime import datetime
 from comm_agents.utils import plot_learning_curve
 
+# TODO: LETZTER STAND: Leider lernt es wieder nur den mean...
+
 # data related params:
 # create data loaders
 # we also decided not the scale the input data since the ranges are similar
@@ -17,17 +19,17 @@ LEARNING_CURVE_FIGURE_PATH = './figures/training/'\
     f'learning_curve_single_env_{str(datetime.now())[:-16]}.html'
 
 # model related params
-ENC_NUM_HIDDEN_LAYERS = 20
+ENC_NUM_HIDDEN_LAYERS = 3 
 ENC_HIDDEN_SIZE = 100
-DEC_NUM_HIDDEN_LAYERS = 20
+DEC_NUM_HIDDEN_LAYERS = 3 
 DEC_HIDDEN_SIZE = 100
 NUM_DEC_AGENTS = 4
 QUESTION_SIZE = 2
 
 # trainng related params
-LEARNING_RATE = 0.001
-EPOCHS = 1000
-BATCH_SIZE = 500
+LEARNING_RATE = 0.00001
+EPOCHS = 200
+BATCH_SIZE = 2000
 BETA = 0.0
 
 # initialize dataset
@@ -73,8 +75,7 @@ def loss_fn(answers, opt_answers, log_vars, beta):
 
 
 # Define loss and optimizer
-# optimizer = torch.optim.SGD(model.parameters(), lr=LEARNING_RATE*.01)
-optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE*.0001)
+optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE*.01)
 
 
 # Training loop
@@ -117,7 +118,7 @@ for epoch in range(EPOCHS):
     epoch_ls.append(epoch)
     sel_biases_ls.append(model.selection_bias)
 
-    if epoch % 100 == 0:
+    if epoch % 10 == 0:
         logger.debug(f'epoch {epoch+1} of {EPOCHS}, train_loss = {train_loss},'
                      f' val_loss = {val_loss}')
 

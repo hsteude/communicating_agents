@@ -54,7 +54,6 @@ class SingleEncModel(nn.Module):
     def filter(self, mu, log_var):
         """
         """
-        breakpoint()
         std = torch.exp(0.5*log_var)  # standard deviation
         eps = torch.randn(mu.shape[0], *std.shape)
         # TODO: come up with vectorized version here!!
