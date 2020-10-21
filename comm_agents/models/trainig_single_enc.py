@@ -19,17 +19,17 @@ LEARNING_CURVE_FIGURE_PATH = './figures/training/'\
     f'learning_curve_single_env_{str(datetime.now())[:-16]}.html'
 
 # model related params
-ENC_NUM_HIDDEN_LAYERS = 3 
+ENC_NUM_HIDDEN_LAYERS = 20
 ENC_HIDDEN_SIZE = 100
-DEC_NUM_HIDDEN_LAYERS = 3 
+DEC_NUM_HIDDEN_LAYERS = 3
 DEC_HIDDEN_SIZE = 100
 NUM_DEC_AGENTS = 4
 QUESTION_SIZE = 2
 
 # trainng related params
 LEARNING_RATE = 0.00001
-EPOCHS = 200
-BATCH_SIZE = 2000
+EPOCHS = 100
+BATCH_SIZE = 64 
 BETA = 0.0
 
 # initialize dataset
@@ -75,7 +75,9 @@ def loss_fn(answers, opt_answers, log_vars, beta):
 
 
 # Define loss and optimizer
-optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE*.01)
+# optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
+optimizer = torch.optim.SGD(model.parameters(), lr=LEARNING_RATE)
+
 
 
 # Training loop

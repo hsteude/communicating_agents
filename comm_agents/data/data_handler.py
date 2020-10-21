@@ -1,64 +1,61 @@
 import torch
-import torchvision
-from torch.utils.data import Dataset, DataLoader
-import numpy as np
-import math
+from torch.utils.data import Dataset
 import pandas as pd
+import glob
 
-PATH = 'data/reference_experiment_dat_1000_new_new_new2.csv'
-PATH2 = 'data/reference_experiment_dat_1000_new_new_new3.csv'
-PATH3 = 'data/reference_experiment_dat_1000_new_new_new4.csv'
+TRAINING_DATA_PATH = r'data/training/'
 
 
 class RefExpDataset(Dataset):
 
     def __init__(self):
-        # TODO: Clean up this mess!
         # read with pandas
-        df = pd.read_csv(PATH, dtype=np.float32)
-        df2 = pd.read_csv(PATH2, dtype=np.float32)
-        df3 = pd.read_csv(PATH3, dtype=np.float32)
-        df = pd.concat([df, df2, df3], axis=0)
+        df = self.read_files_to_df()
         self.n_samples = len(df)
 
-        # observation scalling
-        exp_a_part_0_cols = [c for c in df.columns if 'o_a_0' in c]
-        df.loc[:, exp_a_part_0_cols] = df[exp_a_part_0_cols] / \
-            df[exp_a_part_0_cols].max().max()
-        exp_a_part_1_cols = [c for c in df.columns if 'o_a_1' in c]
-        df.loc[:, exp_a_part_1_cols] = df[exp_a_part_1_cols] / \
-            df[exp_a_part_1_cols].max().max()
-        exp_b_part_0_cols = [c for c in df.columns if 'o_b_0' in c]
-        df.loc[:, exp_b_part_0_cols] = df[exp_b_part_0_cols] / \
-            df[exp_b_part_0_cols].max().max()
-        exp_b_part_1_cols = [c for c in df.columns if 'o_b_1' in c]
-        df.loc[:, exp_b_part_1_cols] = df[exp_b_part_1_cols] / \
-            df[exp_b_part_1_cols].min().min()
+        # scale obs with max val of each eperiment and zero
+        self.scale_observations(df)
 
         # define attributes
-        self.hidden_states = torch.from_numpy(
-            df[['m0', 'm1', 'q0', 'q1']].values)
+        self.hidden_states = torch.tensor(
+            df[['m0', 'm1', 'q0', 'q1']].values,
+            dtype=torch.float32)
 
-        self.observations = torch.from_numpy(
-            df[[c for c in df.columns if 'o' in c]].values)
+        self.observations = torch.tensor(
+            df[[c for c in df.columns if 'o' in c]].values,
+            dtype=torch.float32)
 
-        self.questions = torch.from_numpy(
-            df[['m_ref_a', 'v_ref_a', 'm_ref_b', 'v_ref_b']].values)
+        self.questions = torch.tensor(
+            df[['m_ref_a', 'v_ref_a', 'm_ref_b', 'v_ref_b']].values,
+            dtype=torch.float32)
 
-        self.opt_answers = torch.from_numpy(
+        self.opt_answers = torch.tensor(
             df[['alpha_star0', 'alpha_star1',
-                'phi_star0', 'phi_star1']].values)
-
-    # support indexing such that dataset[i] can be used to get i-th sample
+                'phi_star0', 'phi_star1']].values,
+            dtype=torch.float32)
 
     def __getitem__(self, index):
         return (self.hidden_states[index], self.observations[index],
                 self.questions[index], self.opt_answers[index])
 
-    # we can call len(dataset) to return the size
     def __len__(self):
         return self.n_samples
 
+    @staticmethod
+    def read_files_to_df():
+        all_files = glob.glob(TRAINING_DATA_PATH + "/*.csv")
+        li = []
+        for filename in all_files:
+            df = pd.read_csv(filename, index_col=None, header=0)
+            li.append(df)
+        return pd.concat(li, axis=0, ignore_index=True)
+
+    def scale_observations(self, df):
+        # observation scalling
+        for match_str in ['o_a_0', 'o_a_1', 'o_b_0', 'o_b_1']:
+            cols = [c for c in df.columns if match_str in c]
+            df.loc[:, cols] = df[cols] / df[cols].abs().max().max()
+        return df
 
 if __name__ == '__main__':
     # create dataset

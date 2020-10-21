@@ -12,7 +12,11 @@ setup(
         'pandas',
         'numpy',
         'scipy',
-        'loguru'],
+        'loguru',
+        'torch',
+        'joblib',
+        'tqdm',
+        'glob'],
     extras_require={'plotting': ['matplotlib', 'jupyter', 'plotly', 'interact']},
     setup_requires=['pytest-runner', 'flake8'],
     tests_require=['pytest']

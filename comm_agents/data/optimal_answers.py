@@ -5,10 +5,10 @@ from scipy import optimize
 
 GOLF_HOLE_LOC_M = .1
 GOLF_HOLE_LOC_C = .1
-INITIAL_GUESS_M = [0.499 * np.pi, 0.499 * np.pi]
+INITIAL_GUESS_M = [0.249 * np.pi, 0.249 * np.pi]
 INITIAL_GUESS_C = [0.501 * np.pi, 0.501 * np.pi]
-ALPHA_BOUNDS = [(0.01, .25 * np.pi)]*2
-PHI_BOUNDS = [(0.501 * np.pi, .75 * np.pi)]*2
+ALPHA_BOUNDS = [(0.01, .2499 * np.pi)]*2
+PHI_BOUNDS = [(0.501 * np.pi, .7499 * np.pi)]*2
 
 
 def get_single_mass_loss_value(exp, i, golf_hole_loc):

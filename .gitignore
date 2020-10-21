@@ -86,6 +86,7 @@ target/
 # exclude data from source control by default
 data/*
 !data/.gitkeep
+!data/training/.gitkeep
 
 # Mac OS-specific storage files
 .DS_Store

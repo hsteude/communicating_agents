@@ -32,18 +32,20 @@ PARAM_DICT = dict(
 M_RANGES = [1e-20, 5e-20]
 Q0_RANGE = [1e-16, 2e-16]
 Q1_RANGE = [-1e-15, -2e-15]
+Q0_T_Q1_RANGE = [4e-31, 1e-31]
 V_REF_RANGE = [1, 2]
 
 
 class DataGenerator():
     def __init__(self, param_dict, sample_size, m_range, q0_range, q1_range,
-                 v_ref_range):
+                 q0_t_q1_range, v_ref_range):
         self.param_dict = param_dict
         self.sample_size = sample_size
         self.m_range = m_range
         self.q0_range = q0_range
         self.q1_range = q1_range
         self.v_ref_range = v_ref_range
+        self.q0_t_q1_range = q0_t_q1_range
         self.data_set = dict(
             observations_0=[],
             observations_1=[],
@@ -57,8 +59,14 @@ class DataGenerator():
 
     def _get_random_experimental_setting(self):
         m = np.random.uniform(*self.m_range, 2)
-        q0 = np.random.uniform(*self.q0_range, 1)
-        q1 = np.random.uniform(*self.q1_range, 1)
+        # q0 = np.random.uniform(*self.q0_range, 1)
+        # q1 = np.random.uniform(*self.q1_range, 1)
+        q0_t_q1 = np.random.uniform(*self.q0_t_q1_range, 1)
+        # q0_t_q1 = q0 * q1  and q0 = c * q1 --> q0_t_q1 = c * q1**2 --> q1 = sqrt(q0_t_q1/c) 
+        c = np.random.uniform(.5, 1.5, 1)
+        q0 = np.sqrt(q0_t_q1 / c)
+        q1 = -q0 * c
+
         v_ref_a, v_ref_b = np.random.uniform(*self.v_ref_range, 2)
         return m, np.array([q0, q1]).ravel(), v_ref_a, v_ref_b
 
@@ -155,7 +163,6 @@ class DataGenerator():
             logger.debug('Started sampling reference experiments in parallel in'
                          ' 1 processes')
             data = [_in_parallel(self) for _ in tqdm(range(self.sample_size))]
-        breakpoint()
         data = [d for d in data if d]
         logger.debug(f'Successfully computed {len(data)} of {self.sample_size}'
                      f' experimental settings')
@@ -164,12 +171,12 @@ class DataGenerator():
 
 
 if __name__ == '__main__':
-    SAMPLE_SIZE = 10000 
+    SAMPLE_SIZE = 10 
     BATCH_SIZE = 36
-    PATH = 'data/reference_experiment_dat_1000_new_new_new4.csv'
-    dg = DataGenerator(PARAM_DICT, SAMPLE_SIZE, M_RANGES, Q0_RANGE, Q1_RANGE,
+    PATH = 'data/test.csv'
+    dg = DataGenerator(PARAM_DICT, SAMPLE_SIZE, M_RANGES, Q0_RANGE, Q1_RANGE,Q0_T_Q1_RANGE,
                        V_REF_RANGE)
 
-    df = dg.generate(parallel=True, njobs=6)
+    df = dg.generate(parallel=False, njobs=11)
     df.to_csv(PATH, index=False)
     logger.debug(f'Successfully wrote data frame to: {PATH}')
