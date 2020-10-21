@@ -5,47 +5,20 @@ from comm_agents.data.optimal_answers import (get_alpha_star,
 import numpy as np
 import pandas as pd
 from joblib import Parallel, delayed
-import joblib
 from loguru import logger
 from tqdm import tqdm
-
-SAMPLE_SIZE_OPT = 1000
-DT_OPT = .001
-GOLF_HOLE_LOC_M = .1
-GOLF_HOLE_LOC_C = .1
-TOLERANCE = .01
-PARAM_DICT = dict(
-    m=[1e-20, 1e-20],
-    q=[1e-16, -1e-15],
-    m_ref_m=2e-20,
-    q_ref=[-1e-17, -1e-17],
-    v_ref_m=2,
-    m_ref_c=2e-20,
-    v_ref_c=0,
-    N=10,
-    alpha=[0, 0],
-    phi=[0, 0],
-    dt=.01,
-    d=.1,
-    is_golf_game=False,
-    gravity=True)
-M_RANGES = [1e-20, 5e-20]
-Q0_RANGE = [1e-16, 2e-16]
-Q1_RANGE = [-1e-15, -2e-15]
-Q0_T_Q1_RANGE = [4e-31, 1e-31]
-V_REF_RANGE = [1, 2]
+import json
 
 
 class DataGenerator():
-    def __init__(self, param_dict, sample_size, m_range, q0_range, q1_range,
-                 q0_t_q1_range, v_ref_range):
+    def __init__(self, param_dict, sample_size, m_range, q0_t_q1_range,
+                 v_ref_range, seed, batch_size):
         self.param_dict = param_dict
         self.sample_size = sample_size
         self.m_range = m_range
-        self.q0_range = q0_range
-        self.q1_range = q1_range
         self.v_ref_range = v_ref_range
         self.q0_t_q1_range = q0_t_q1_range
+        self.batch_size = batch_size
         self.data_set = dict(
             observations_0=[],
             observations_1=[],
@@ -55,18 +28,14 @@ class DataGenerator():
             opt_answers_b=[],
             hidden_states=[]
         )
-        np.random.seed(10000)
+        np.random.seed(seed)
 
     def _get_random_experimental_setting(self):
         m = np.random.uniform(*self.m_range, 2)
-        # q0 = np.random.uniform(*self.q0_range, 1)
-        # q1 = np.random.uniform(*self.q1_range, 1)
         q0_t_q1 = np.random.uniform(*self.q0_t_q1_range, 1)
-        # q0_t_q1 = q0 * q1  and q0 = c * q1 --> q0_t_q1 = c * q1**2 --> q1 = sqrt(q0_t_q1/c) 
         c = np.random.uniform(.5, 1.5, 1)
         q0 = np.sqrt(q0_t_q1 / c)
         q1 = -q0 * c
-
         v_ref_a, v_ref_b = np.random.uniform(*self.v_ref_range, 2)
         return m, np.array([q0, q1]).ravel(), v_ref_a, v_ref_b
 
@@ -155,9 +124,9 @@ class DataGenerator():
             data = []
             logger.debug(f'Started sampling reference experiments in parallel in'
                          f' {njobs} processes')
-            for _ in tqdm(range(int(self.sample_size/BATCH_SIZE))):
+            for _ in tqdm(range(int(self.sample_size/self.batch_size))):
                 d = Parallel(n_jobs=njobs)(delayed(_in_parallel)(self)
-                                           for _ in range(BATCH_SIZE))
+                                           for _ in range(self.batch_size))
                 data.extend(d)
         else:
             logger.debug('Started sampling reference experiments in parallel in'
@@ -171,12 +140,21 @@ class DataGenerator():
 
 
 if __name__ == '__main__':
-    SAMPLE_SIZE = 10 
-    BATCH_SIZE = 36
-    PATH = 'data/test.csv'
-    dg = DataGenerator(PARAM_DICT, SAMPLE_SIZE, M_RANGES, Q0_RANGE, Q1_RANGE,Q0_T_Q1_RANGE,
-                       V_REF_RANGE)
 
-    df = dg.generate(parallel=False, njobs=11)
+    with open('config.json') as config_file:
+        conf_dct = json.load(config_file)
+    default_params = conf_dct['refExperimentDefaultParams']
+    dg_params = conf_dct['dataGeneration']
+    PATH = 'data/test.csv'
+    dg = DataGenerator(
+        param_dict=conf_dct['refExperimentDefaultParams'],
+        sample_size=dg_params['SAMPLE_SIZE'],
+        m_range=dg_params['M_RANGES'],
+        q0_t_q1_range=['Q0_T_Q1_RANGE'],
+        v_ref_range=['V_REF_RANGE'],
+        seed=dg_params['SEED'],
+        batch_size=dg_params['BATCH_SIZE'])
+
+    df = dg.generate(parallel=False, njobs=-1)
     df.to_csv(PATH, index=False)
     logger.debug(f'Successfully wrote data frame to: {PATH}')

@@ -1,5 +1,33 @@
 {
-        "optimizer": {
-                
+        "dataGeneration": {
+                "SAMPLE_SIZE_OPT" : 1000,
+                "DT_OPT" : 0.001,
+                "GOLF_HOLE_LOC_M" : 0.1,
+                "GOLF_HOLE_LOC_C" : 0.1,
+                "TOLERANCE" : 0.01,
+                "M_RANGES" : [1e-20, 5e-20],
+                "Q0_T_Q1_RANGE" : [4e-31, 1e-31],
+                "V_REF_RANGE" : [1, 2],
+                "SEED" : 382
+        },
+        "refExperimentDefaultParams" : { 
+                "m":[1e-20, 1e-20],
+                "q":[1e-16, -1e-15],
+                "m_ref_m":2e-20,
+                "q_ref":[-1e-17, -1e-17],
+                "v_ref_m":2,
+                "m_ref_c":2e-20,
+                "v_ref_c":0,
+                "N":10,
+                "alpha":[0, 0],
+                "phi":[0, 0],
+                "dt":0.01,
+                "d":0.1,
+                "is_golf_game":false,
+                "gravity":true},
+        "filePaths":{
+                "DATA_BASE_PATH" :"./data",
+                "TRAINING_DATA_FOLDER": "training",
+                "TRAINING_DATA_FILE_NAME" : "reference_experiments.csv"
         }
 }

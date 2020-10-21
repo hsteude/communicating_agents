@@ -1,6 +1,7 @@
 import torch
 from torch.utils.data import Dataset
 import pandas as pd
+import numpy as np
 import glob
 
 TRAINING_DATA_PATH = r'data/training/'
@@ -8,13 +9,20 @@ TRAINING_DATA_PATH = r'data/training/'
 
 class RefExpDataset(Dataset):
 
-    def __init__(self):
+    def __init__(self, oversample=True):
         # read with pandas
         df = self.read_files_to_df()
         self.n_samples = len(df)
 
         # scale obs with max val of each eperiment and zero
-        self.scale_observations(df)
+        df = self.scale_observations(df)
+
+        if oversample:
+            breakpoint()
+            df = self.oversample(df, ['alpha_star0', 'phi_star0'],
+                                 [(0, .25*np.pi), (.5 * np.pi, .75 * np.pi)], 10)
+            df = self.oversample(df, ['alpha_star1', 'phi_star1'],
+                                 [(0, .25*np.pi), (.5 * np.pi, .75 * np.pi)], 10)
 
         # define attributes
         self.hidden_states = torch.tensor(
@@ -56,6 +64,27 @@ class RefExpDataset(Dataset):
             cols = [c for c in df.columns if match_str in c]
             df.loc[:, cols] = df[cols] / df[cols].abs().max().max()
         return df
+
+    @staticmethod
+    def oversample(df, cols, ranges, nbins, frac=.5):
+        edges_col0 = np.linspace(*ranges[0], nbins)
+        edges_col1 = np.linspace(*ranges[1], nbins)
+        H, ec0, ec1 = np.histogram2d(df[cols[0]].values,
+                                     df[cols[1]].values,
+                                     bins=(edges_col0, edges_col1))
+        sample_factors = (H.max() - H) * frac  # don't over do it --> .5
+
+        for i in range(H.shape[0]):
+            for j in range(H.shape[1]):
+                cond = df[cols[0]].between(ec0[i], ec0[i+1])\
+                    & df[cols[1]].between(ec1[j], ec1[j+1])
+                if not df[cond].empty:
+                    df_over = df[cond].sample(int(sample_factors[i, j]),
+                                              replace=True)
+                    df = pd.concat([df, df_over],
+                                   axis=0, ignore_index=True)
+        return df
+
 
 if __name__ == '__main__':
     # create dataset

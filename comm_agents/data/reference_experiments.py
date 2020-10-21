@@ -3,7 +3,6 @@ import numpy as np
 
 K_E = 8.99e9  # Coulomb constant
 G = 9.81  # Gravety constant
-GOLF_TOLERANCE = .1
 
 
 class RefExperimentMass():
@@ -13,7 +12,7 @@ class RefExperimentMass():
     Parameters
     ----------
     m : list of two floats
-        List holds the mass of particle 0 and 1 respectively 
+        List holds the mass of particle 0 and 1 respectively
     m_ref : float
         Mass of the reference particle
     v_ref : float
@@ -27,8 +26,8 @@ class RefExperimentMass():
     gravity : bool
         Indicates whether gravity is applied or not
     **kwargs
-        The keyword arguments are used for to that a comprehensive parameter dictionary
-        can be passed to the init 
+        The keyword arguments are used for to that a comprehensive parameter
+        dictionary can be passed to the init
 
     Attributes
     ----------
@@ -49,9 +48,9 @@ class RefExperimentMass():
         Current velocity of both particles in x direction
     v_z : np.array
         Current velocity of both particles in z direction
-    x,z,t,v_x, and v_z_seris : np.array 
-        Each hold the time series of the corresponding attributes within the simulation
-        Will be populated only when the run method is called
+    x,z,t,v_x, and v_z_seris : np.array
+        Each hold the time series of the corresponding attributes within the
+        simulation. Will be populated only when the run method is called
     """
 
     def __init__(self, m=[2e-12, 1e-12], m_ref_m=2e-12, v_ref_m=1, N=100,
@@ -152,6 +151,8 @@ class RefExperimentMass():
         fig.add_trace(trace_pp1, row=1, col=1)
         fig.add_trace(trace_pp2, row=1, col=1)
         fig.add_trace(trace_golf_hole, row=1, col=1)
+        fig.update_xaxes(range=[-.05, .2])
+        fig.update_yaxes(range=[-.05, .1])
         title = \
             f'Ref. experiement A. Alpha1: {round(self.angle[0] / np.pi, 2)}'\
             f' pi, Alpha2: {round(self.angle[1] / np.pi, 2)} pi'
@@ -169,18 +170,18 @@ class RefExperimentCharge():
     ----------
     m : list of two floats
         List holds the mass of particle 0 and 1 respectively
+    q : list of two floats
+        List holds the mass of particle 0 and 1 respectively
     m_ref : float
         Mass of the reference particle
     v_ref : float
         Velocity of reference particle (before collision)
     N : int
         Number of simulation steps
-    alpha : list of two floats
-        Angles of the particles (between x-axis and v_ref vector)
+    phi : list of two floats
+        Angles of the particles (between y-axis and v_ref vector)
     dt : float
         Time delta between two simulation steps
-    gravity : bool
-        Indicates whether gravity is applied or not
     **kwargs
         The keyword arguments are used for to that a comprehensive parameter
         dictionary can be passed to the init
@@ -334,7 +335,7 @@ class RefExperimentCharge():
     def visualize(self, golf_hole_loc=.1, tolerance=.1):
         from plotly.subplots import make_subplots
         import plotly.graph_objects as go
-        fig = make_subplots(rows=1, cols=1)
+        fig = go.Figure()
         trace_pp1 = go.Scatter(x=self.x_series[:, 0], y=self.y_series[:, 0],
                                name='Particle 1', mode='lines+markers',
                                opacity=0.5)
@@ -349,16 +350,18 @@ class RefExperimentCharge():
                                      y=[golf_hole_loc - tolerance * golf_hole_loc,
                                         golf_hole_loc + tolerance * golf_hole_loc],
                                      name='Golf hole')
-        fig.add_trace(trace_pp1, row=1, col=1)
-        fig.add_trace(trace_pp2, row=1, col=1)
-        fig.add_trace(trace_p_ref, row=1, col=1)
-        fig.add_trace(trace_golf_hole, row=1, col=1)
+        fig.add_trace(trace_pp1)
+        fig.add_trace(trace_pp2)
+        fig.add_trace(trace_p_ref)
+        fig.add_trace(trace_golf_hole)
+        fig.update_xaxes(range=[-.05, .2])
+        fig.update_yaxes(range=[-.05, .2])
         title = \
             f'Ref. experiement 2. Phi1: {round(self.angle[0] / np.pi, 2)}'\
             f' pi, Phi2: {round(self.angle[1] / np.pi, 2)} pi'
         fig.update_layout(title_text=title)
-        fig.update_xaxes(title_text="Position x [m]", row=1, col=1)
-        fig.update_yaxes(title_text="Position y [m]", row=1, col=1)
+        fig.update_xaxes(title_text="Position x [m]")
+        fig.update_yaxes(title_text="Position y [m]")
         fig.show()
 
 
