@@ -8,8 +8,7 @@ import numpy as np
 from datetime import datetime
 from comm_agents.utils import plot_learning_curve
 
-# TODO: LETZTER STAND: Leider lernt es wieder nur den mean...
-
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 # data related params:
 # create data loaders
 # we also decided not the scale the input data since the ranges are similar
@@ -37,6 +36,8 @@ PRETRAIN_LOSS_THRESHOLD = .02
 
 # initialize dataset
 dataset = RefExpDataset()
+# send to gpu if available
+dataset
 
 # Creating data indices for training and validation splits:
 dataset_size = len(dataset)
@@ -66,10 +67,13 @@ model = SingleEncModel(observantion_size=dataset.observations.shape[1],
                        dec_hidden_size=DEC_HIDDEN_SIZE,
                        num_decoding_agents=NUM_DEC_AGENTS)
 
+# send to gpu if available
+model.to(device)
+
 
 # # debug model forward pass
 answers, lat_spaces, selection_biases = model(
-    dataset.observations[0:2], dataset.questions[0:2])
+    dataset.observations[0:2].to(device), dataset.questions[0:2].to(device))
 
 
 # define loss function
@@ -93,6 +97,10 @@ beta = INITIAL_BETA
 optimizer = optimizer_adam
 for epoch in range(EPOCHS):
     for hidden_states, observations, questions, opt_answers in train_loader:
+        # send data set to gpu if available
+        hidden_states, observations, questions, opt_answers = \
+            (hidden_states.to(device), observations.to(device),
+             questions.to(device), opt_answers.to(device))
         # predict = forward pass with our model
         answers, lat_spaces, selection_biases = model(observations,
                                                       questions)
