@@ -14,7 +14,8 @@ from comm_agents.utils import plot_learning_curve
 # create data loaders
 # we also decided not the scale the input data since the ranges are similar
 VALIDATION_SPLIT = .01
-MODEL_PATH = f'./models/single_enc_model_{str(datetime.now())[:-16]}.pt'
+MODEL_PATH_PRE = f'./models/single_enc_model_pre{str(datetime.now())[:-16]}.pt'
+MODEL_PATH = f'./models/single_enc_model_post{str(datetime.now())[:-16]}.pt'
 LEARNING_CURVE_FIGURE_PATH = './figures/training/'\
     f'learning_curve_single_env_{str(datetime.now())[:-16]}.html'
 
@@ -27,10 +28,12 @@ NUM_DEC_AGENTS = 4
 QUESTION_SIZE = 2
 
 # trainng related params
-LEARNING_RATE = 0.00001
-EPOCHS = 100
-BATCH_SIZE = 64 
-BETA = 0.0
+LEARNING_RATE = 0.0001
+EPOCHS = 20
+BATCH_SIZE = 64
+INITIAL_BETA = 0.0
+SHUFFLE = False
+PRETRAIN_LOSS_THRESHOLD = .02
 
 # initialize dataset
 dataset = RefExpDataset()
@@ -46,9 +49,11 @@ train_sampler = SubsetRandomSampler(train_indices)
 val_sampler = SubsetRandomSampler(val_indices)
 
 train_loader = DataLoader(dataset, batch_size=BATCH_SIZE,
-                          sampler=train_sampler)
+                          sampler=train_sampler,
+                          shuffle=SHUFFLE)
 val_loader = DataLoader(dataset, batch_size=BATCH_SIZE,
-                        sampler=val_sampler)
+                        sampler=val_sampler,
+                        shuffle=SHUFFLE)
 
 
 # Initialize model
@@ -75,9 +80,8 @@ def loss_fn(answers, opt_answers, log_vars, beta):
 
 
 # Define loss and optimizer
-# optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
-optimizer = torch.optim.SGD(model.parameters(), lr=LEARNING_RATE)
-
+optimizer_adam = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
+optimizer_sgd = torch.optim.SGD(model.parameters(), lr=LEARNING_RATE*.01)
 
 
 # Training loop
@@ -85,6 +89,8 @@ train_loss_ls = []
 val_loss_ls = []
 epoch_ls = []
 sel_biases_ls = []
+beta = INITIAL_BETA
+optimizer = optimizer_adam
 for epoch in range(EPOCHS):
     for hidden_states, observations, questions, opt_answers in train_loader:
         # predict = forward pass with our model
@@ -92,7 +98,7 @@ for epoch in range(EPOCHS):
                                                       questions)
 
         # loss
-        train_loss = loss_fn(answers, opt_answers, selection_biases, BETA)
+        train_loss = loss_fn(answers, opt_answers, selection_biases, beta)
 
         # calculate gradients = backward pass
         train_loss.backward()
@@ -112,15 +118,22 @@ for epoch in range(EPOCHS):
                                                           questions)
 
             # loss
-            val_loss = loss_fn(answers, opt_answers, selection_biases, BETA)
+            val_loss = loss_fn(answers, opt_answers, selection_biases, beta)
+
+    if train_loss < PRETRAIN_LOSS_THRESHOLD:
+        beta = 0.1
+        logger.info(f'Turning on filter optimization with beta = {beta}')
+        torch.save(model.state_dict(), MODEL_PATH_PRE)
+
+        optimizer = optimizer_sgd
 
     # save learning stats
     train_loss_ls.append(train_loss)
     val_loss_ls.append(val_loss)
     epoch_ls.append(epoch)
-    sel_biases_ls.append(model.selection_bias)
+    sel_biases_ls.append(model.selection_bias.detach().numpy())
 
-    if epoch % 10 == 0:
+    if epoch % 1 == 0:
         logger.debug(f'epoch {epoch+1} of {EPOCHS}, train_loss = {train_loss},'
                      f' val_loss = {val_loss}')
 

@@ -65,7 +65,7 @@ class SingleEncModel(nn.Module):
         # encoding
         lat_space = torch.tanh(self.enc1_in(observantion))
         for e1h in self.enc1_h:
-            lat_space = torch.tanh(e1h(lat_space))
+            lat_space = torch.relu(e1h(lat_space))
         lat_space = self.enc1_out(lat_space)
 
         # filter

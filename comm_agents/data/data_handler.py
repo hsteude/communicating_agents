@@ -12,17 +12,17 @@ class RefExpDataset(Dataset):
     def __init__(self, oversample=True):
         # read with pandas
         df = self.read_files_to_df()
-        self.n_samples = len(df)
 
         # scale obs with max val of each eperiment and zero
         df = self.scale_observations(df)
 
         if oversample:
-            breakpoint()
             df = self.oversample(df, ['alpha_star0', 'phi_star0'],
                                  [(0, .25*np.pi), (.5 * np.pi, .75 * np.pi)], 10)
             df = self.oversample(df, ['alpha_star1', 'phi_star1'],
                                  [(0, .25*np.pi), (.5 * np.pi, .75 * np.pi)], 10)
+
+        self.n_samples = len(df)
 
         # define attributes
         self.hidden_states = torch.tensor(
