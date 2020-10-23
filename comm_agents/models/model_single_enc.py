@@ -56,7 +56,6 @@ class SingleEncModel(nn.Module):
     def filter(self, mu, log_var):
         """
         """
-        breakpoint()
         std = torch.exp(0.5*log_var)  # standard deviation
         if self.cuda:
             eps = torch.cuda.randn(mu.shape[0], *std.shape)
@@ -66,10 +65,12 @@ class SingleEncModel(nn.Module):
         # TODO: Come up with vectorized version here!
         # sample = mu + (std.expand(*eps.shape).flatten()
                        # * eps.flatten()).view(mu.shape[0], *std.shape)
-        sample = torch.stack([mu[i] + (eps * std)[i, :, :]
-                              for i in range(mu.shape[0])])
+        # sample = torch.stack([mu[i] + (eps * std)[i, :, :]
+                              # for i in range(mu.shape[0])])
 
-        return sample
+        s = [std[i, :] * eps[:, i, :] for i in range(std.shape[0])]
+
+        return s 
 
     def forward(self, observantion, questions):
         # encoding
@@ -79,28 +80,28 @@ class SingleEncModel(nn.Module):
         lat_space = self.enc1_out(lat_space)
 
         # filter
-        filt_out = self.filter(lat_space, self.selection_bias)
+        s0, s1, s2, s3 = self.filter(lat_space, self.selection_bias)
 
         # decoding
-        a1_in = torch.cat((filt_out[:, 0, :], questions[:, 0:2]), axis=1)
+        a1_in = torch.cat((s0, questions[:, 0:2]), axis=1)
         a1_out = torch.tanh(self.a1_in(a1_in))
         for a1h in self.a1_h:
             a1_out = torch.tanh(a1h(a1_out))
         a1_out = self.a1_out(a1_out)
 
-        a2_in = torch.cat((filt_out[:, 1, :], questions[:, 0:2]), axis=1)
+        a2_in = torch.cat((s1, questions[:, 0:2]), axis=1)
         a2_out = torch.tanh(self.a2_in(a2_in))
         for a2h in self.a2_h:
             a2_out = torch.tanh(a2h(a2_out))
         a2_out = self.a2_out(a2_out)
 
-        b1_in = torch.cat((filt_out[:, 2, :], questions[:, 2:4]), axis=1)
+        b1_in = torch.cat((s2, questions[:, 2:4]), axis=1)
         b1_out = torch.tanh(self.b1_in(b1_in))
         for b1h in self.b1_h:
             b1_out = torch.tanh(b1h(b1_out))
         b1_out = self.b1_out(b1_out)
 
-        b2_in = torch.cat((filt_out[:, 3, :], questions[:, 2:4]), axis=1)
+        b2_in = torch.cat((s3, questions[:, 2:4]), axis=1)
         b2_out = torch.tanh(self.b2_in(b2_in))
         for b2h in self.b2_h:
             b2_out = torch.tanh(b2h(b2_out))
