@@ -141,11 +141,11 @@ for epoch in range(EPOCHS):
             val_loss = loss_fn(answers, opt_answers, selection_biases, beta)
     
     if train_loss < PRETRAIN_LOSS_THRESHOLD:
-        beta = 0.5
+        beta = 0.1
         logger.debug(f'Turning on filter optimization with beta = {beta}')
         torch.save(model.state_dict(), MODEL_PATH_PRE)
 
-        optimizer = optimizer_sgd
+        # optimizer = optimizer_sgd
 
     # save learning stats
     train_loss_ls.append(train_loss)
