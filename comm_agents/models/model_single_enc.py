@@ -58,17 +58,13 @@ class SingleEncModel(nn.Module):
         """
         std = torch.exp(0.5*log_var)  # standard deviation
         if self.cuda:
-            eps = torch.cuda.randn(mu.shape[0], *std.shape)
+            eps_shape = torch.Size((mu.shape[0], *std.shape))
+            eps = torch.cuda.FloatTensor(eps_shape)
+            torch.randn(eps_shape, out=eps)
         else:
             eps = torch.randn(mu.shape[0], *std.shape)
 
-        # TODO: Come up with vectorized version here!
-        # sample = mu + (std.expand(*eps.shape).flatten()
-                       # * eps.flatten()).view(mu.shape[0], *std.shape)
-        # sample = torch.stack([mu[i] + (eps * std)[i, :, :]
-                              # for i in range(mu.shape[0])])
-
-        s = [std[i, :] * eps[:, i, :] for i in range(std.shape[0])]
+        s = [mu + std[i, :] * eps[:, i, :] for i in range(std.shape[0])]
         return s 
 
     def forward(self, observantion, questions):

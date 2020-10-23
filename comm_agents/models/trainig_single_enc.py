@@ -8,9 +8,10 @@ import numpy as np
 from datetime import datetime
 from comm_agents.utils import plot_learning_curve
 from tqdm import tqdm
-
+torch.manual_seed(1)
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+# torch.cuda.set_device('cuda:0')
 logger.info(f'Training script running on {device}')
 # data related params:
 # create data loaders
@@ -22,7 +23,7 @@ LEARNING_CURVE_FIGURE_PATH = './figures/training/'\
     f'learning_curve_single_env_{str(datetime.now())[:-16]}.html'
 
 # model related params
-ENC_NUM_HIDDEN_LAYERS = 20
+ENC_NUM_HIDDEN_LAYERS = 3 
 ENC_HIDDEN_SIZE = 100
 DEC_NUM_HIDDEN_LAYERS = 3
 DEC_HIDDEN_SIZE = 100
@@ -30,18 +31,18 @@ NUM_DEC_AGENTS = 4
 QUESTION_SIZE = 2
 
 # trainng related params
-LEARNING_RATE = 0.0001
-EPOCHS = 2
-BATCH_SIZE = 5120 * 2
+LEARNING_RATE = 0.01
+EPOCHS = 50
+BATCH_SIZE = 5120*2# 128 #5120 * 2
 INITIAL_BETA = 0.0
 SHUFFLE = False
-PRETRAIN_LOSS_THRESHOLD = .02
+PRETRAIN_LOSS_THRESHOLD = .021
 
 # initialize dataset
 logger.info('Loading data set and data loader')
-dataset = RefExpDataset()
+dataset = RefExpDataset(oversample=True)
 # send to gpu if available
-dataset
+# BATCH_SIZE = len(dataset)
 
 # Creating data indices for training and validation splits:
 dataset_size = len(dataset)
@@ -90,7 +91,7 @@ def loss_fn(answers, opt_answers, log_vars, beta):
 
 # Define loss and optimizer
 optimizer_adam = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
-optimizer_sgd = torch.optim.SGD(model.parameters(), lr=LEARNING_RATE*.01)
+optimizer_sgd = torch.optim.SGD(model.parameters(), lr=LEARNING_RATE*.0001)
 
 
 # Training loop
@@ -100,6 +101,8 @@ epoch_ls = []
 sel_biases_ls = []
 beta = INITIAL_BETA
 optimizer = optimizer_adam
+
+
 for epoch in range(EPOCHS):
     for _, observations, questions, opt_answers in tqdm(train_loader):
         # send data set to gpu if available
@@ -125,16 +128,20 @@ for epoch in range(EPOCHS):
     # Validation
     with torch.set_grad_enabled(False):
         for hidden_states, observations, questions, opt_answers in val_loader:
+            observations, questions, opt_answers = (observations.to(device),
+                                                    questions.to(device),
+                                                    opt_answers.to(device))
 
             # predict = forward pass with our model
             answers, lat_spaces, selection_biases = model(observations,
                                                           questions)
 
+
             # loss
             val_loss = loss_fn(answers, opt_answers, selection_biases, beta)
-
+    
     if train_loss < PRETRAIN_LOSS_THRESHOLD:
-        beta = 0.1
+        beta = 0.5
         logger.debug(f'Turning on filter optimization with beta = {beta}')
         torch.save(model.state_dict(), MODEL_PATH_PRE)
 
@@ -144,12 +151,12 @@ for epoch in range(EPOCHS):
     train_loss_ls.append(train_loss)
     val_loss_ls.append(val_loss)
     epoch_ls.append(epoch)
-    sel_biases_ls.append(model.selection_bias.detach().numpy())
+    sel_biases_ls.append(model.selection_bias.detach().cpu().numpy())
 
     if epoch % 1 == 0:
         logger.debug(f'epoch {epoch+1} of {EPOCHS}, train_loss = {train_loss},'
                      f' val_loss = {val_loss}')
 
 torch.save(model.state_dict(), MODEL_PATH)
-plot_learning_curve(epoch_ls, train_loss_ls, val_loss_ls,
-                    LEARNING_CURVE_FIGURE_PATH)
+# plot_learning_curve(epoch_ls, train_loss_ls, val_loss_ls,
+                    # LEARNING_CURVE_FIGURE_PATH)

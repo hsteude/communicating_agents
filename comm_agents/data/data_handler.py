@@ -66,7 +66,7 @@ class RefExpDataset(Dataset):
         return df
 
     @staticmethod
-    def oversample(df, cols, ranges, nbins, frac=.5):
+    def oversample(df, cols, ranges, nbins, frac=1):
         edges_col0 = np.linspace(*ranges[0], nbins)
         edges_col1 = np.linspace(*ranges[1], nbins)
         H, ec0, ec1 = np.histogram2d(df[cols[0]].values,
