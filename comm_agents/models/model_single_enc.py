@@ -69,7 +69,6 @@ class SingleEncModel(nn.Module):
                               # for i in range(mu.shape[0])])
 
         s = [std[i, :] * eps[:, i, :] for i in range(std.shape[0])]
-
         return s 
 
     def forward(self, observantion, questions):
