@@ -6,8 +6,10 @@ import numpy as np
 class SingleEncModel(nn.Module):
     def __init__(self, observantion_size, lat_space_size, question_size,
                  enc_num_hidden_layers, enc_hidden_size, dec_num_hidden_layers,
-                 dec_hidden_size, num_decoding_agents):
+                 dec_hidden_size, num_decoding_agents, device):
         super(SingleEncModel, self).__init__()
+
+        self.device = device
 
         self.observantion_size = observantion_size
         self.lat_space_size = lat_space_size
@@ -55,7 +57,7 @@ class SingleEncModel(nn.Module):
         """
         """
         std = torch.exp(0.5*log_var)  # standard deviation
-        eps = torch.randn(mu.shape[0], *std.shape)
+        eps = torch.randn(mu.shape[0], *std.shape).to(self.device)
         # TODO: come up with vectorized version here!!
         sample = torch.stack([mu[i] + (eps * std)[i, :, :]
                               for i in range(mu.shape[0])])

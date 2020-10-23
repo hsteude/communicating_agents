@@ -7,8 +7,11 @@ from torch.utils.data.sampler import SubsetRandomSampler
 import numpy as np
 from datetime import datetime
 from comm_agents.utils import plot_learning_curve
+from tqdm import tqdm
+
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+logger.info(f'Training script running on {device}')
 # data related params:
 # create data loaders
 # we also decided not the scale the input data since the ranges are similar
@@ -28,13 +31,14 @@ QUESTION_SIZE = 2
 
 # trainng related params
 LEARNING_RATE = 0.0001
-EPOCHS = 20
+EPOCHS = 2
 BATCH_SIZE = 64
 INITIAL_BETA = 0.0
 SHUFFLE = False
 PRETRAIN_LOSS_THRESHOLD = .02
 
 # initialize dataset
+logger.info('Loading data set and data loader')
 dataset = RefExpDataset()
 # send to gpu if available
 dataset
@@ -65,7 +69,8 @@ model = SingleEncModel(observantion_size=dataset.observations.shape[1],
                        enc_hidden_size=ENC_HIDDEN_SIZE,
                        dec_num_hidden_layers=DEC_NUM_HIDDEN_LAYERS,
                        dec_hidden_size=DEC_HIDDEN_SIZE,
-                       num_decoding_agents=NUM_DEC_AGENTS)
+                       num_decoding_agents=NUM_DEC_AGENTS,
+                       device=device)
 
 # send to gpu if available
 model.to(device)
@@ -96,7 +101,7 @@ sel_biases_ls = []
 beta = INITIAL_BETA
 optimizer = optimizer_adam
 for epoch in range(EPOCHS):
-    for hidden_states, observations, questions, opt_answers in train_loader:
+    for hidden_states, observations, questions, opt_answers in tqdm(train_loader):
         # send data set to gpu if available
         hidden_states, observations, questions, opt_answers = \
             (hidden_states.to(device), observations.to(device),
@@ -130,7 +135,7 @@ for epoch in range(EPOCHS):
 
     if train_loss < PRETRAIN_LOSS_THRESHOLD:
         beta = 0.1
-        logger.info(f'Turning on filter optimization with beta = {beta}')
+        logger.debug(f'Turning on filter optimization with beta = {beta}')
         torch.save(model.state_dict(), MODEL_PATH_PRE)
 
         optimizer = optimizer_sgd
