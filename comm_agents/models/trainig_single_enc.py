@@ -101,11 +101,11 @@ sel_biases_ls = []
 beta = INITIAL_BETA
 optimizer = optimizer_adam
 for epoch in range(EPOCHS):
-    for hidden_states, observations, questions, opt_answers in tqdm(train_loader):
+    for _, observations, questions, opt_answers in tqdm(train_loader):
         # send data set to gpu if available
-        hidden_states, observations, questions, opt_answers = \
-            (hidden_states.to(device), observations.to(device),
-             questions.to(device), opt_answers.to(device))
+        observations, questions, opt_answers = (observations.to(device),
+                                                questions.to(device),
+                                                opt_answers.to(device))
         # predict = forward pass with our model
         answers, lat_spaces, selection_biases = model(observations,
                                                       questions)

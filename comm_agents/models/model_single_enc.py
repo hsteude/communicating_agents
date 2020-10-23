@@ -8,8 +8,7 @@ class SingleEncModel(nn.Module):
                  enc_num_hidden_layers, enc_hidden_size, dec_num_hidden_layers,
                  dec_hidden_size, num_decoding_agents, device):
         super(SingleEncModel, self).__init__()
-
-        self.device = device
+        
 
         self.observantion_size = observantion_size
         self.lat_space_size = lat_space_size
@@ -19,6 +18,7 @@ class SingleEncModel(nn.Module):
         self.dec_num_hidden_layers = dec_num_hidden_layers
         self.dec_hidden_size = dec_hidden_size
         self.num_decoding_agents = num_decoding_agents
+        self.cuda = device.type != 'cpu'
 
         # Encoding Angent layers
         self.enc1_in, self.enc1_h, self.enc1_out = self.get_encoder_agent()
@@ -56,11 +56,19 @@ class SingleEncModel(nn.Module):
     def filter(self, mu, log_var):
         """
         """
+        breakpoint()
         std = torch.exp(0.5*log_var)  # standard deviation
-        eps = torch.randn(mu.shape[0], *std.shape).to(self.device)
-        # TODO: come up with vectorized version here!!
+        if self.cuda:
+            eps = torch.cuda.randn(mu.shape[0], *std.shape)
+        else:
+            eps = torch.randn(mu.shape[0], *std.shape)
+
+        # TODO: Come up with vectorized version here!
+        # sample = mu + (std.expand(*eps.shape).flatten()
+                       # * eps.flatten()).view(mu.shape[0], *std.shape)
         sample = torch.stack([mu[i] + (eps * std)[i, :, :]
                               for i in range(mu.shape[0])])
+
         return sample
 
     def forward(self, observantion, questions):
