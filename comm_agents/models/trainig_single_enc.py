@@ -35,6 +35,7 @@ LEARNING_RATE = 0.01
 EPOCHS = 50
 BATCH_SIZE = 5120*2# 128 #5120 * 2
 INITIAL_BETA = 0.0
+BETA = .001
 SHUFFLE = False
 PRETRAIN_LOSS_THRESHOLD = .021
 
@@ -141,7 +142,7 @@ for epoch in range(EPOCHS):
             val_loss = loss_fn(answers, opt_answers, selection_biases, beta)
     
     if train_loss < PRETRAIN_LOSS_THRESHOLD:
-        beta = 0.1
+        beta = BETA 
         logger.debug(f'Turning on filter optimization with beta = {beta}')
         torch.save(model.state_dict(), MODEL_PATH_PRE)
 
