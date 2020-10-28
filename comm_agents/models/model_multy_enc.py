@@ -1,17 +1,16 @@
 import torch
-from torch.nn import functional as F
 import numpy as np
 from torch import nn
 import pytorch_lightning as pl
-from torchvision import datasets, transforms
-from PIL import Image
 import torchvision
 
 
 class MultyEncModel(pl.LightningModule):
+    """Write me!"""
     def __init__(self, observantion_size, lat_space_size, question_size,
                  enc_num_hidden_layers, enc_hidden_size, dec_num_hidden_layers,
-                 dec_hidden_size, num_decoding_agents, initial_log_var device):
+                 dec_hidden_size, num_decoding_agents, num_encoding_agents,
+                 initial_log_var, learning_rate, beta, **kwargs):
         super().__init__()
 
         self.observantion_size = observantion_size
@@ -21,18 +20,20 @@ class MultyEncModel(pl.LightningModule):
         self.enc_hidden_size = enc_hidden_size
         self.dec_num_hidden_layers = dec_num_hidden_layers
         self.dec_hidden_size = dec_hidden_size
+        self.num_encoding_agents = num_encoding_agents
         self.num_decoding_agents = num_decoding_agents
-        self.cuda = device.type != 'cpu'
+        self.learning_rate = learning_rate
+        self.beta = beta
 
         # Encoding Angent layers
-        self.enc1_in, self.enc1_h, self.enc1_out = self.get_encoder_agent()
-        self.enc2_in, self.enc2_h, self.enc2_out = self.get_encoder_agent()
+        self.enc1_in, self.enc1_h, self.enc1_out = self._get_encoder_agent()
+        self.enc2_in, self.enc2_h, self.enc2_out = self._get_encoder_agent()
 
         # 4 Decoding agents
-        self.a1_in, self.a1_h, self.a1_out = self.get_decoder_agent()
-        self.a2_in, self.a2_h, self.a2_out = self.get_decoder_agent()
-        self.b1_in, self.b1_h, self.b1_out = self.get_decoder_agent()
-        self.b2_in, self.b2_h, self.b2_out = self.get_decoder_agent()
+        self.a1_in, self.a1_h, self.a1_out = self._get_decoder_agent()
+        self.a2_in, self.a2_h, self.a2_out = self._get_decoder_agent()
+        self.b1_in, self.b1_h, self.b1_out = self._get_decoder_agent()
+        self.b2_in, self.b2_h, self.b2_out = self._get_decoder_agent()
 
         self.selection_bias = nn.Parameter(torch.tensor(
             np.array([initial_log_var]*(
@@ -40,16 +41,18 @@ class MultyEncModel(pl.LightningModule):
             .reshape(self.num_decoding_agents, self.lat_space_size),
             dtype=torch.float32))
 
-    def get_encoder_agent(self):
+    def _get_encoder_agent(self):
         """Write me!"""
         enc_in = nn.Linear(self.observantion_size, self.enc_hidden_size)
         enc_h = nn.ModuleList(
             [nn.Linear(self.enc_hidden_size, self.enc_hidden_size)
              for i in range(self.enc_num_hidden_layers)])
-        enc_out = nn.Linear(self.enc_hidden_size, self.lat_space_size)
+        enc_out = nn.Linear(
+            self.enc_hidden_size,
+            int(self.lat_space_size / self.num_encoding_agents))
         return enc_in, enc_h, enc_out
 
-    def get_decoder_agent(self):
+    def _get_decoder_agent(self):
         """Write me!"""
         a_in = nn.Linear(in_features=self.lat_space_size + self.question_size,
                          out_features=self.dec_hidden_size)
@@ -69,13 +72,13 @@ class MultyEncModel(pl.LightningModule):
     def encode(self, observantions):
         """Write me!"""
         # decoder 1
-        lat_space_enc1 = torch.tanh(self.enc1_in(observantion[:, :20]))
+        lat_space_enc1 = torch.tanh(self.enc1_in(observantions[:, :20]))
         for e1h in self.enc1_h:
-            lat_space_enc1 = torch.relu(e1h(lat_space))
-        lat_space_enc1 = self.enc1_out(lat_space)
+            lat_space_enc1 = torch.relu(e1h(lat_space_enc1))
+        lat_space_enc1 = self.enc1_out(lat_space_enc1)
 
         # decoder 2
-        lat_space_enc2 = torch.tanh(self.enc2_in(observantion[:, 20:]))
+        lat_space_enc2 = torch.tanh(self.enc2_in(observantions[:, 20:]))
         for e2h in self.enc2_h:
             lat_space_enc2 = torch.relu(e2h(lat_space_enc2))
         lat_space_enc2 = self.enc2_out(lat_space_enc2)
@@ -114,7 +117,7 @@ class MultyEncModel(pl.LightningModule):
             b2_out = torch.tanh(b2h(b2_out))
         b2_out = self.b2_out(b2_out)
 
-        return torch.cat((a1_out, a2_out, b1_out, b2_out)
+        return torch.cat((a1_out, a2_out, b1_out, b2_out), axis=1)
 
     def forward(self, observantions, questions):
 
@@ -128,9 +131,7 @@ class MultyEncModel(pl.LightningModule):
         answers = self.decode(s0, s1, s2, s3, questions)
         return answers, lat_space
 
-
-
-    def training_step(self, batch, batch_idx, beta):
+    def training_step(self, batch, batch_idx):
         """not mine yet"""
         _, observantions, questions, opt_answers = batch
 
@@ -143,64 +144,30 @@ class MultyEncModel(pl.LightningModule):
         # decode
         answers = self.decode(s0, s1, s2, s3, questions)
 
-        loss = self.loss_function(answers, opt_answers, log_vars, beta)
+        loss = self.loss_function(answers, opt_answers,
+                                  self.selection_bias, self.beta)
 
         log = {'train_loss': loss}
-        return {'loss':loss, 'log': log}
+        return {'loss': loss, 'log': log}
 
     def validation_step(self, batch, batch_idx):
-        """not mine yet"""
-        x, _ = batch
+        _, observantions, questions, opt_answers = batch
 
-        mu, logvar = self.encode(x.view(-1, 784))
-        z = self.reparameterize(mu, logvar)
-        x_hat = self(z)
-        val_loss = self.loss_function(x_hat, x, mu, logvar)
+        # compute forward pass
+        lat_space = self.encode(observantions)
 
-        return {'val_loss':val_loss, 'x_hat': x_hat}
+        # filter
+        s0, s1, s2, s3 = self.filter(lat_space, self.selection_bias)
 
-    def validation_epoch_end(
-            self,
-            outputs):
+        # decode
+        answers = self.decode(s0, s1, s2, s3, questions)
 
-        val_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
-        x_hat = outputs[-1]['x_hat']
+        loss = self.loss_function(answers, opt_answers,
+                                  self.selection_bias, self.beta)
 
-        grid = torchvision.utils.make_grid(x_hat)
-        self.logger.experiment.add_image('images', grid, 0)
-
-        log = {'avg_val_loss': val_loss}
-        return {'log': log, 'val_loss': val_loss}
+        log = {'val_loss': loss}
+        return {'loss': loss, 'log': log}
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(),
-                lr=self.hparams.learning_rate)
-
-    def train_dataloader(self):
-        train_loader = torch.utils.data.DataLoader(
-            datasets.MNIST('../data', train=True, download=True,
-                           transform=transforms.ToTensor()),
-            batch_size=self.hparams.batch_size, shuffle=True)
-        return train_loader
-
-    def val_dataloader(self):
-        val_loader = torch.utils.data.DataLoader(
-            datasets.MNIST('../data', train=False,
-                transform=transforms.ToTensor()),
-            batch_size=self.hparams.batch_size)
-        return val_loader
-
-
-if __name__ == '__main__':
-    from argparse import ArgumentParser
-
-    parser = ArgumentParser()
-    parser = pl.Trainer.add_argparse_args(parser)
-    parser.add_argument('--batch_size', default=32, type=int)
-    parser.add_argument('--learning_rate', default=1e-3, type=float)
-
-    args = parser.parse_args()
-
-    mem = MultyEncModel(hparams=args)
-    trainer = pl.Trainer.from_argparse_args(args)
-    trainer.fit(mem)
+                                lr=self.learning_rate)

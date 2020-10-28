@@ -4,6 +4,7 @@ figures/data_generation/*
 !figures/data_generation/.gitkeep
 figures/training/*
 !figures/training/.gitkeep
+lightning_logs/*
 
 
 # Byte-compiled / optimized / DLL files
