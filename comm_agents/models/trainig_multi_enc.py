@@ -31,14 +31,14 @@ QUESTION_SIZE = 2
 LEARNING_RATE = 0.0001
 INITIAL_LOG_VAR = -10
 EPOCHS = 5
-BATCH_SIZE = 521
+BATCH_SIZE = 512*10
 INITIAL_BETA = 0.0
 BETA = .0001
 SHUFFLE = False
 PRETRAIN_LOSS_THRES = .005
 PRETRAIN = True
-GPUS = None
-BACKEND = None
+GPUS = 8
+BACKEND = 'dp'
 
 
 checkpoint_callback = ModelCheckpoint(
@@ -112,7 +112,8 @@ def train():
         pretrain_loss_thres=PRETRAIN_LOSS_THRES,
         pretrain=PRETRAIN,
         gpus=GPUS,
-        distributed_backend=BACKEND))
+        distributed_backend=BACKEND,
+        batch_size=BATCH_SIZE))
 
     # Initialize model
     logger.debug('Initializing model and trainer')

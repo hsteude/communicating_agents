@@ -15,8 +15,7 @@ setup(
         'loguru',
         'torch',
         'joblib',
-        'tqdm',
-        'glob'],
+        'tqdm'],
     extras_require={'plotting': ['matplotlib', 'jupyter', 'plotly', 'interact']},
     setup_requires=['pytest-runner', 'flake8'],
     tests_require=['pytest']

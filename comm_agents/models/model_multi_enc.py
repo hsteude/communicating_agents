@@ -89,7 +89,7 @@ class MultiEncModel(pl.LightningModule):
     def filter(self, mu, log_var):
         """Write me!"""
         std = torch.exp(0.5*log_var)  # standard deviation
-        eps = torch.randn(mu.shape[0], *std.shape)
+        eps = torch.randn(mu.shape[0], *std.shape, device=self.device)
         s = [mu + std[i, :] * eps[:, i, :] for i in range(std.shape[0])]
         return s
 
