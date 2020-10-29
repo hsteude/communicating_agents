@@ -2,28 +2,30 @@ import torch
 import numpy as np
 from torch import nn
 import pytorch_lightning as pl
-import torchvision
 
 
-class MultyEncModel(pl.LightningModule):
+class MultiEncModel(pl.LightningModule):
     """Write me!"""
-    def __init__(self, observantion_size, lat_space_size, question_size,
-                 enc_num_hidden_layers, enc_hidden_size, dec_num_hidden_layers,
-                 dec_hidden_size, num_decoding_agents, num_encoding_agents,
-                 initial_log_var, learning_rate, beta, **kwargs):
+
+    def __init__(self, hparams, **kwargs):
         super().__init__()
 
-        self.observantion_size = observantion_size
-        self.lat_space_size = lat_space_size
-        self.question_size = question_size
-        self.enc_num_hidden_layers = enc_num_hidden_layers
-        self.enc_hidden_size = enc_hidden_size
-        self.dec_num_hidden_layers = dec_num_hidden_layers
-        self.dec_hidden_size = dec_hidden_size
-        self.num_encoding_agents = num_encoding_agents
-        self.num_decoding_agents = num_decoding_agents
-        self.learning_rate = learning_rate
-        self.beta = beta
+        self.hparams = hparams
+        self.observantion_size = hparams['observantion_size']
+        self.lat_space_size = hparams['lat_space_size']
+        self.question_size = hparams['question_size']
+        self.enc_num_hidden_layers = hparams['enc_num_hidden_layers']
+        self.enc_hidden_size = hparams['enc_hidden_size']
+        self.dec_num_hidden_layers = hparams['dec_num_hidden_layers']
+        self.dec_hidden_size = hparams['dec_hidden_size']
+        self.num_encoding_agents = hparams['num_encoding_agents']
+        self.num_decoding_agents = hparams['num_decoding_agents']
+        self.learning_rate = hparams['learning_rate']
+        self.beta = hparams['beta']
+        self.initial_log_var = hparams['initial_log_var']
+        self.pretrain_loss_thres = hparams['pretrain_loss_thres']
+        self.pretrain = hparams['pretrain']
+        self.current_train_loss = torch.tensor([[100]])
 
         # Encoding Angent layers
         self.enc1_in, self.enc1_h, self.enc1_out = self._get_encoder_agent()
@@ -36,7 +38,7 @@ class MultyEncModel(pl.LightningModule):
         self.b2_in, self.b2_h, self.b2_out = self._get_decoder_agent()
 
         self.selection_bias = nn.Parameter(torch.tensor(
-            np.array([initial_log_var]*(
+            np.array([self.initial_log_var]*(
                 self.lat_space_size*self.num_decoding_agents))
             .reshape(self.num_decoding_agents, self.lat_space_size),
             dtype=torch.float32))
@@ -119,17 +121,8 @@ class MultyEncModel(pl.LightningModule):
 
         return torch.cat((a1_out, a2_out, b1_out, b2_out), axis=1)
 
-    def forward(self, observantions, questions):
-
-        # compute forward pass
-        lat_space = self.encode(observantions)
-
-        # filter
-        s0, s1, s2, s3 = self.filter(lat_space, self.selection_bias)
-
-        # decode
-        answers = self.decode(s0, s1, s2, s3, questions)
-        return answers, lat_space
+    def forward(self, observantions):
+        return self.encode(observantions)
 
     def training_step(self, batch, batch_idx):
         """not mine yet"""
@@ -144,29 +137,20 @@ class MultyEncModel(pl.LightningModule):
         # decode
         answers = self.decode(s0, s1, s2, s3, questions)
 
-        loss = self.loss_function(answers, opt_answers,
-                                  self.selection_bias, self.beta)
-
-        log = {'train_loss': loss}
-        return {'loss': loss, 'log': log}
+        beta = 0 if self.pretrain else self.beta
+        self.current_train_loss = self.loss_function(answers, opt_answers,
+                                                     self.selection_bias, beta)
+        return self.current_train_loss
 
     def validation_step(self, batch, batch_idx):
         _, observantions, questions, opt_answers = batch
-
-        # compute forward pass
         lat_space = self.encode(observantions)
-
-        # filter
         s0, s1, s2, s3 = self.filter(lat_space, self.selection_bias)
-
-        # decode
         answers = self.decode(s0, s1, s2, s3, questions)
-
+        beta = 0 if self.pretrain else self.beta
         loss = self.loss_function(answers, opt_answers,
-                                  self.selection_bias, self.beta)
-
-        log = {'val_loss': loss}
-        return {'loss': loss, 'log': log}
+                                  self.selection_bias, beta)
+        self.log('val_loss', loss, prog_bar=True)
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(),
