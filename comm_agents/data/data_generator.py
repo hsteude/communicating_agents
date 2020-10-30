@@ -12,22 +12,19 @@ import json
 
 class DataGenerator():
     def __init__(self, param_dict, sample_size, m_range, q0_t_q1_range,
-                 v_ref_range, seed, batch_size):
+                 v_ref_range, seed, batch_size, sample_size_opt,
+                 golf_hole_loc_m, golf_hole_loc_c, tolerance, dt_opt):
         self.param_dict = param_dict
         self.sample_size = sample_size
+        self.sample_size_opt = sample_size_opt
+        self.golf_hole_loc_m = golf_hole_loc_m
+        self.golf_hole_loc_c = golf_hole_loc_c
+        self.tolerance = tolerance
+        self.dt_opt = dt_opt
         self.m_range = m_range
         self.v_ref_range = v_ref_range
         self.q0_t_q1_range = q0_t_q1_range
         self.batch_size = batch_size
-        self.data_set = dict(
-            observations_0=[],
-            observations_1=[],
-            questions_a=[],
-            questions_b=[],
-            opt_answers_a=[],
-            opt_answers_b=[],
-            hidden_states=[]
-        )
         np.random.seed(seed)
 
     def _get_random_experimental_setting(self):
@@ -57,8 +54,8 @@ class DataGenerator():
         req_opt = RefExperimentCharge(**self.param_dict)
         req_opt.is_golf_game = True
         req_opt.v_ref = v_ref_b
-        rem_opt.N = req_opt.N = SAMPLE_SIZE_OPT
-        rem_opt.dt = req_opt.dt = DT_OPT
+        rem_opt.N = req_opt.N = self.sample_size_opt
+        rem_opt.dt = req_opt.dt = self.dt_opt
         alpha_star, loss0 = get_alpha_star(rem_opt)
         phi_star, loss1 = get_phi_star(req_opt)
         rem_opt.set_initial_state()
@@ -68,9 +65,10 @@ class DataGenerator():
         req_opt.angle = phi_star
         req_opt.run()
         return (alpha_star, loss0, rem_opt.check_for_hole_in_one(
-            golf_hole_loc=GOLF_HOLE_LOC_M, tolerance=TOLERANCE),
-            phi_star, loss1, req_opt.check_for_hole_in_one(
-            golf_hole_loc=GOLF_HOLE_LOC_C, tolerance=TOLERANCE))
+            golf_hole_loc=self.golf_hole_loc_m,
+                tolerance=self.tolerance),
+                phi_star, loss1, req_opt.check_for_hole_in_one(
+            golf_hole_loc=self.golf_hole_loc_c, tolerance=self.tolerance))
 
     def trans_data_set_to_tabular(self, data):
         # m, q, o_a, o_b, q_a, q_b, a_a, a_b
@@ -108,13 +106,14 @@ class DataGenerator():
     def generate(self, parallel=True, njobs=6):
         def _in_parallel(self):
             try:
-                m, q, v_ref_a, v_ref_b = self._get_random_experimental_setting()
+                m, q, v_ref_a, v_ref_b = \
+                    self._get_random_experimental_setting()
                 o_a, o_b = self._run_reference_experiments(
                     m, q, v_ref_a, v_ref_b)
                 q_a, q_b = self._get_questions(v_ref_a, v_ref_b)
-                a_a, loss_a, hio_a, a_b, loss_b, hio_b = self._get_optimal_answers(
-                    m, q, v_ref_a, v_ref_b)
-                if all([lo < TOLERANCE for lo in [loss_a, loss_b]]) \
+                a_a, loss_a, hio_a, a_b, loss_b, hio_b = \
+                    self._get_optimal_answers(m, q, v_ref_a, v_ref_b)
+                if all([lo < self.tolerance for lo in [loss_a, loss_b]]) \
                         and all([hio_a[0], hio_a[1], hio_b[0], hio_b[1]]):
                     return m, q, o_a, o_b, q_a, q_b, a_a, a_b
             except TypeError:
@@ -122,15 +121,16 @@ class DataGenerator():
                              f' m: {m}, q: {q}, v_ref: {v_ref_a}, {v_ref_b}')
         if parallel:
             data = []
-            logger.debug(f'Started sampling reference experiments in parallel in'
-                         f' {njobs} processes')
+            logger.debug(f'Started sampling reference experiments in parallel'
+                         f' in {njobs} processes')
             for _ in tqdm(range(int(self.sample_size/self.batch_size))):
                 d = Parallel(n_jobs=njobs)(delayed(_in_parallel)(self)
                                            for _ in range(self.batch_size))
                 data.extend(d)
         else:
-            logger.debug('Started sampling reference experiments in parallel in'
-                         ' 1 processes')
+            logger.debug(
+                'Started sampling reference experiments in'
+                ' 1 processes')
             data = [_in_parallel(self) for _ in tqdm(range(self.sample_size))]
         data = [d for d in data if d]
         logger.debug(f'Successfully computed {len(data)} of {self.sample_size}'
@@ -153,7 +153,13 @@ if __name__ == '__main__':
         q0_t_q1_range=['Q0_T_Q1_RANGE'],
         v_ref_range=['V_REF_RANGE'],
         seed=dg_params['SEED'],
-        batch_size=dg_params['BATCH_SIZE'])
+        batch_size=dg_params['BATCH_SIZE'],
+        sample_size_opt=dg_params['SAMPLE_SIZE_OPT'],
+        dt_opt=dg_params['DT_OPT'],
+        golf_hole_loc_m=dg_params['GOLF_HOLE_M'],
+        golf_hole_loc_c=dg_params['GOLF_HOLE_C'],
+        tolerance=dg_params['TOLERANCE']
+    )
 
     df = dg.generate(parallel=False, njobs=-1)
     df.to_csv(PATH, index=False)

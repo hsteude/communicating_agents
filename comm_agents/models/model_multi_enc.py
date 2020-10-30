@@ -74,13 +74,17 @@ class MultiEncModel(pl.LightningModule):
     def encode(self, observantions):
         """Write me!"""
         # decoder 1
-        lat_space_enc1 = torch.tanh(self.enc1_in(observantions[:, :20]))
+        enc1_obs = torch.cat((observantions[:, :10],
+                              observantions[:, 20:30]), axis=1)
+        lat_space_enc1 = torch.tanh(self.enc1_in(enc1_obs))
         for e1h in self.enc1_h:
             lat_space_enc1 = torch.relu(e1h(lat_space_enc1))
         lat_space_enc1 = self.enc1_out(lat_space_enc1)
 
         # decoder 2
-        lat_space_enc2 = torch.tanh(self.enc2_in(observantions[:, 20:]))
+        enc2_obs = torch.cat((observantions[:, 10:20],
+                              observantions[:, 30:40]), axis=1)
+        lat_space_enc2 = torch.tanh(self.enc2_in(enc2_obs))
         for e2h in self.enc2_h:
             lat_space_enc2 = torch.relu(e2h(lat_space_enc2))
         lat_space_enc2 = self.enc2_out(lat_space_enc2)
@@ -140,6 +144,7 @@ class MultiEncModel(pl.LightningModule):
         beta = 0 if self.pretrain else self.beta
         self.current_train_loss = self.loss_function(answers, opt_answers,
                                                      self.selection_bias, beta)
+        self.log('train_loss', self.current_train_loss)
         return self.current_train_loss
 
     def validation_step(self, batch, batch_idx):

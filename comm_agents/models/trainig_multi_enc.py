@@ -9,10 +9,9 @@ from pytorch_lightning.callbacks import Callback
 from loguru import logger
 from datetime import datetime
 from pytorch_lightning.callbacks import ModelCheckpoint
-import torch
 
-MODEL_PATH_PRE = f'./models/single_enc_model_pre{str(datetime.now())[:-16]}.pt'
-MODEL_PATH = f'./models/single_enc_model_post{str(datetime.now())[:-16]}'
+MODEL_PATH_PRE = f'./models/multi_enc_model_pre{str(datetime.now())[:-16]}.ckpt'
+MODEL_PATH = f'./models/multi_enc_model_post{str(datetime.now())[:-16]}'
 
 # data loader related
 VALIDATION_SPLIT = .01
@@ -28,17 +27,17 @@ NUM_ENC_AGENTS = 2
 QUESTION_SIZE = 2
 
 # trainng related params
-LEARNING_RATE = 0.0001
+LEARNING_RATE = 0.001
 INITIAL_LOG_VAR = -10
-EPOCHS = 5
+EPOCHS = 500
 BATCH_SIZE = 512*10
 INITIAL_BETA = 0.0
 BETA = .0001
 SHUFFLE = False
-PRETRAIN_LOSS_THRES = .005
+PRETRAIN_LOSS_THRES = .001
 PRETRAIN = True
-GPUS = 8
-BACKEND = 'dp'
+GPUS = 1
+BACKEND = None
 
 
 checkpoint_callback = ModelCheckpoint(
@@ -57,23 +56,20 @@ class Callbacks(Callback):
     def on_epoch_end(self, trainer, model):
         loss = model.current_train_loss
         thres = model.pretrain_loss_thres
-        if loss < thres:
+        if loss < thres and model.pretrain:
             trainer.model.pretrain = False
             logger.debug('Started fitting selection bias')
-            torch.save(model.state_dict(), MODEL_PATH_PRE)
+            trainer.save_checkpoint(MODEL_PATH_PRE)
             logger.debug(f'Saved pretrained model at: {MODEL_PATH_PRE}')
 
     def on_train_end(self, trainer, model):
         logger.debug('Training fiished!')
 
 
-def train():
+if __name__ == '__main__':
     parser = ArgumentParser()
     parser = pl.Trainer.add_argparse_args(parser)
-    parser.add_argument('--batch_size', default=64, type=int)
-    parser.add_argument('--learning_rate', default=1e-3, type=float)
     args = parser.parse_args()
-    breakpoint()
 
     logger.debug('Loading data set')
     dataset = RefExpDataset(oversample=True)
@@ -97,7 +93,7 @@ def train():
 
     args_dct = vars(args)
     args_dct.update(dict(
-        observantion_size=int(dataset.observations.shape[1]/2),
+        observantion_size=int(dataset.observations.shape[1] / NUM_ENC_AGENTS),
         lat_space_size=dataset.hidden_states.shape[1],
         question_size=QUESTION_SIZE,
         enc_num_hidden_layers=ENC_NUM_HIDDEN_LAYERS,
@@ -113,7 +109,8 @@ def train():
         pretrain=PRETRAIN,
         gpus=GPUS,
         distributed_backend=BACKEND,
-        batch_size=BATCH_SIZE))
+        batch_size=BATCH_SIZE,
+        learning_rate=LEARNING_RATE))
 
     # Initialize model
     logger.debug('Initializing model and trainer')
@@ -126,8 +123,4 @@ def train():
 
     logger.debug('Started fitting model')
     trainer.fit(model, train_loader, val_loader)
-    breakpoint()
 
-
-if __name__ == '__main__':
-    train()
