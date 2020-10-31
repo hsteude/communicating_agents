@@ -7,7 +7,7 @@ G = 9.81  # Gravety constant
 
 class RefExperimentMass():
     """
-    This class implements one reference mass experiment with two particles
+    This class implements one reference experiment (mass) with two particles
 
     Parameters
     ----------
@@ -110,8 +110,8 @@ class RefExperimentMass():
             self.t += self.dt
 
     def check_for_hole_in_one(self, golf_hole_loc=.1, tolerance=.1):
-        min = golf_hole_loc - tolerance * golf_hole_loc
-        max = golf_hole_loc + tolerance * golf_hole_loc
+        min_ = golf_hole_loc - tolerance * golf_hole_loc
+        max_ = golf_hole_loc + tolerance * golf_hole_loc
 
         zero_cross_0 = np.where(np.diff(np.sign(self.z_series[:, 0])))[0]
         zero_cross_1 = np.where(np.diff(np.sign(self.z_series[:, 1])))[0]
@@ -125,13 +125,13 @@ class RefExperimentMass():
             bevore0 = self.x_series[zero_cross_0[0]][0]
             after0 = self.x_series[zero_cross_0[0] + 1][0]
             mean0 = np.mean([bevore0, after0])
-            hio0 = any([min < val < max for val in [bevore0, after0, mean0]])
+            hio0 = any([min_ < val < max_ for val in [bevore0, after0, mean0]])
 
         if zero_cross_1:
             bevore1 = self.x_series[zero_cross_1[0]][1]
             after1 = self.x_series[zero_cross_1[0] + 1][1]
             mean1 = np.mean([bevore1, after1])
-            hio1 = any([min < val < max for val in [bevore1, after1, mean1]])
+            hio1 = any([min_ < val < max_ for val in [bevore1, after1, mean1]])
 
         return hio0, hio1
 
@@ -154,7 +154,7 @@ class RefExperimentMass():
         fig.update_xaxes(range=[-.05, .2])
         fig.update_yaxes(range=[-.05, .1])
         title = \
-            f'Ref. experiement A. Alpha1: {round(self.angle[0] / np.pi, 2)}'\
+            f'Ref. experiment A. Alpha1: {round(self.angle[0] / np.pi, 2)}'\
             f' pi, Alpha2: {round(self.angle[1] / np.pi, 2)} pi'
         fig.update_layout(title_text=title)
         fig.update_xaxes(title_text="Position x [m]", row=1, col=1)
@@ -164,7 +164,7 @@ class RefExperimentMass():
 
 class RefExperimentCharge():
     """
-    This class implements one reference mass experiment with two particles
+    This class implements one reference experiment (charge) with two particles
 
     Parameters
     ----------
@@ -307,8 +307,8 @@ class RefExperimentCharge():
             self.t += self.dt
 
     def check_for_hole_in_one(self, golf_hole_loc=.1, tolerance=.1):
-        min = golf_hole_loc - tolerance * golf_hole_loc
-        max = golf_hole_loc + tolerance * golf_hole_loc
+        min_ = golf_hole_loc - tolerance * golf_hole_loc
+        max_ = golf_hole_loc + tolerance * golf_hole_loc
 
         zero_cross_0 = np.where(np.diff(np.sign(self.x_series[:, 0])))[0]
         zero_cross_1 = np.where(np.diff(np.sign(self.x_series[:, 1])))[0]
@@ -322,18 +322,17 @@ class RefExperimentCharge():
             bevore0 = self.y_series[zero_cross_0[0]][0]
             after0 = self.y_series[zero_cross_0[0] + 1][0]
             mean0 = np.mean([bevore0, after0])
-            hio0 = any([min < val < max for val in [bevore0, after0, mean0]])
+            hio0 = any([min_ < val < max_ for val in [bevore0, after0, mean0]])
 
         if zero_cross_1:
             bevore1 = self.y_series[zero_cross_1[0]][1]
             after1 = self.y_series[zero_cross_1[0] + 1][1]
             mean1 = np.mean([bevore1, after1])
-            hio1 = any([min < val < max for val in [bevore1, after1, mean1]])
+            hio1 = any([min_ < val < max_ for val in [bevore1, after1, mean1]])
 
         return hio0, hio1
 
     def visualize(self, golf_hole_loc=.1, tolerance=.1):
-        from plotly.subplots import make_subplots
         import plotly.graph_objects as go
         fig = go.Figure()
         trace_pp1 = go.Scatter(x=self.x_series[:, 0], y=self.y_series[:, 0],
@@ -344,12 +343,13 @@ class RefExperimentCharge():
                                opacity=0.5)
         trace_p_ref = go.Scatter(
             x=[self.x_ref, self.x_ref],
-            y=[0, 0],
+            y=[0, 0], mode='markers',
             name='Reference particle')
-        trace_golf_hole = go.Scatter(x=[0, 0],
-                                     y=[golf_hole_loc - tolerance * golf_hole_loc,
-                                        golf_hole_loc + tolerance * golf_hole_loc],
-                                     name='Golf hole')
+        trace_golf_hole = go.Scatter(
+            x=[0, 0],
+            y=[golf_hole_loc - tolerance * golf_hole_loc,
+               golf_hole_loc + tolerance * golf_hole_loc],
+            name='Golf hole')
         fig.add_trace(trace_pp1)
         fig.add_trace(trace_pp2)
         fig.add_trace(trace_p_ref)
@@ -357,33 +357,9 @@ class RefExperimentCharge():
         fig.update_xaxes(range=[-.05, .2])
         fig.update_yaxes(range=[-.05, .2])
         title = \
-            f'Ref. experiement 2. Phi1: {round(self.angle[0] / np.pi, 2)}'\
+            f'Ref. experiment B, Phi1: {round(self.angle[0] / np.pi, 2)}'\
             f' pi, Phi2: {round(self.angle[1] / np.pi, 2)} pi'
         fig.update_layout(title_text=title)
         fig.update_xaxes(title_text="Position x [m]")
         fig.update_yaxes(title_text="Position y [m]")
         fig.show()
-
-
-if __name__ == '__main__':
-    GOLF_HOLE_LOC_M = 0.1
-    GOLF_HOLE_LOC_C = .1
-    PARAM_DICT = dict(
-        m=[1e-20, 1e-20],
-        q=[1e-16, -1e-15],
-        m_ref_m=2e-20,
-        v_ref_m=1,
-        m_ref_c=0,
-        v_ref_c=0,
-        N=100,
-        alpha=[.1 * np.pi, .3 * np.pi],
-        phi=[.6 * np.pi, .54 * np.pi],
-        dt=.01,
-        d=.1,
-        gravity=True)
-    rem = RefExperimentMass(**PARAM_DICT)
-    rem.run()
-    rem.check_for_hole_in_one(GOLF_HOLE_LOC_M)
-    req = RefExperimentCharge(**PARAM_DICT)
-    req.run()
-    req.check_for_hole_in_one(GOLF_HOLE_LOC_C)
