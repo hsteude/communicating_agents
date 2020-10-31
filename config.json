@@ -1,5 +1,6 @@
 {
         "dataGeneration": {
+                "SAMPLE_SIZE": 100,
                 "SAMPLE_SIZE_OPT" : 1000,
                 "DT_OPT" : 0.001,
                 "GOLF_HOLE_LOC_M" : 0.1,
@@ -8,7 +9,8 @@
                 "M_RANGES" : [1e-20, 5e-20],
                 "Q0_T_Q1_RANGE" : [4e-31, 1e-31],
                 "V_REF_RANGE" : [1, 2],
-                "SEED" : 382
+                "SEED" : 382,
+                "BATCH_SIZE":10
         },
         "refExperimentDefaultParams" : { 
                 "m":[1e-20, 1e-20],

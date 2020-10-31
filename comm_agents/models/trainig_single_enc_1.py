@@ -2,6 +2,7 @@ from comm_agents.data.data_handler import RefExpDataset
 from comm_agents.models.model_single_enc_1 import SingleEncModel
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler
+import torch
 import numpy as np
 import pytorch_lightning as pl
 from argparse import ArgumentParser
@@ -30,7 +31,7 @@ QUESTION_SIZE = 2
 LEARNING_RATE = 0.001
 INITIAL_LOG_VAR = -10
 EPOCHS = 1000
-BATCH_SIZE = 512*15
+BATCH_SIZE = 512
 INITIAL_BETA = 0.0
 BETA = .0001
 SHUFFLE = False
@@ -126,6 +127,11 @@ if __name__ == '__main__':
         breakpoint()
         model.beta = 0.0002
         model.pretrain = False
+        with torch.no_grad():
+            for i in range(4):
+                for j in range(3):
+                    model.selection_bias[i, j] = -10
+
 
     trainer = pl.Trainer.from_argparse_args(
         args,

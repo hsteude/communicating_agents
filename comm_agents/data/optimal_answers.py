@@ -1,10 +1,14 @@
 import numpy as np
 from loguru import logger
 from scipy import optimize
+import json
 
 
-GOLF_HOLE_LOC_M = .1
-GOLF_HOLE_LOC_C = .1
+# load config dict and define some constants
+with open('config.json') as config_file:
+    conf_dct = json.load(config_file)
+golf_hole_loc_m = conf_dct['dataGeneration']['GOLF_HOLE_LOC_M']
+golf_hole_loc_c = conf_dct['dataGeneration']['GOLF_HOLE_LOC_C']
 INITIAL_GUESS_M = [0.249 * np.pi, 0.249 * np.pi]
 INITIAL_GUESS_C = [0.501 * np.pi, 0.501 * np.pi]
 ALPHA_BOUNDS = [(0.01, .2499 * np.pi)]*2
@@ -39,11 +43,11 @@ def get_alpha_star(exp):
     alpha_star = optimize.minimize(
         golf_loss,
         INITIAL_GUESS_M,
-        args=(exp, get_single_mass_loss_value, GOLF_HOLE_LOC_M),
+        args=(exp, get_single_mass_loss_value, golf_hole_loc_m),
         bounds=ALPHA_BOUNDS)
     if alpha_star.success:
         opt_val = golf_loss(
-            alpha_star.x, exp, get_single_mass_loss_value, GOLF_HOLE_LOC_M)
+            alpha_star.x, exp, get_single_mass_loss_value, golf_hole_loc_m)
         return alpha_star.x, opt_val
     else:
         logger.warning('Alpha optimization did not succeed')
@@ -53,11 +57,11 @@ def get_phi_star(exp):
     phi_star = optimize.minimize(
         golf_loss,
         INITIAL_GUESS_C,
-        args=(exp, get_single_charge_loss_value, GOLF_HOLE_LOC_C),
+        args=(exp, get_single_charge_loss_value, golf_hole_loc_c),
         bounds=PHI_BOUNDS)
     if phi_star.success:
         opt_val = golf_loss(
-            phi_star.x, exp, get_single_charge_loss_value, GOLF_HOLE_LOC_C)
+            phi_star.x, exp, get_single_charge_loss_value, golf_hole_loc_c)
         return phi_star.x, opt_val
     else:
         logger.warning('Alpha optimization did not succeed')

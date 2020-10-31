@@ -36,8 +36,10 @@ class DataGenerator():
         v_ref_a, v_ref_b = np.random.uniform(*self.v_ref_range, 2)
         return m, np.array([q0, q1]).ravel(), v_ref_a, v_ref_b
 
-    def _run_reference_experiments(self, m, q, v_ref_a, v_ref_b):
-        self.param_dict.update(m=m, q=q, v_ref_m=v_ref_a, v_ref_c=v_ref_b)
+    def _run_reference_experiments(self, m, q):
+        """Note that we do NOT use the sampled reference velocities for the observations
+        since the encoder is not supposed to encode the velocity of the particle but only its mass"""
+        self.param_dict.update(m=m, q=q)
         rem = RefExperimentMass(**self.param_dict)
         req = RefExperimentCharge(**self.param_dict)
         rem.run()
@@ -108,8 +110,7 @@ class DataGenerator():
             try:
                 m, q, v_ref_a, v_ref_b = \
                     self._get_random_experimental_setting()
-                o_a, o_b = self._run_reference_experiments(
-                    m, q, v_ref_a, v_ref_b)
+                o_a, o_b = self._run_reference_experiments(m, q)
                 q_a, q_b = self._get_questions(v_ref_a, v_ref_b)
                 a_a, loss_a, hio_a, a_b, loss_b, hio_b = \
                     self._get_optimal_answers(m, q, v_ref_a, v_ref_b)
@@ -150,17 +151,17 @@ if __name__ == '__main__':
         param_dict=conf_dct['refExperimentDefaultParams'],
         sample_size=dg_params['SAMPLE_SIZE'],
         m_range=dg_params['M_RANGES'],
-        q0_t_q1_range=['Q0_T_Q1_RANGE'],
-        v_ref_range=['V_REF_RANGE'],
+        q0_t_q1_range=dg_params['Q0_T_Q1_RANGE'],
+        v_ref_range=dg_params['V_REF_RANGE'],
         seed=dg_params['SEED'],
         batch_size=dg_params['BATCH_SIZE'],
         sample_size_opt=dg_params['SAMPLE_SIZE_OPT'],
         dt_opt=dg_params['DT_OPT'],
-        golf_hole_loc_m=dg_params['GOLF_HOLE_M'],
-        golf_hole_loc_c=dg_params['GOLF_HOLE_C'],
+        golf_hole_loc_m=dg_params['GOLF_HOLE_LOC_M'],
+        golf_hole_loc_c=dg_params['GOLF_HOLE_LOC_C'],
         tolerance=dg_params['TOLERANCE']
     )
 
-    df = dg.generate(parallel=False, njobs=-1)
+    df = dg.generate(parallel=True, njobs=-1)
     df.to_csv(PATH, index=False)
     logger.debug(f'Successfully wrote data frame to: {PATH}')
