@@ -1,5 +1,5 @@
 from comm_agents.data.data_handler import RefExpDataset
-from comm_agents.models.model_single_enc_1 import SingleEncModel
+from comm_agents.models.model_single_enc import SingleEncModel
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler
 import torch
@@ -11,6 +11,7 @@ from loguru import logger
 from datetime import datetime
 from pytorch_lightning.callbacks import ModelCheckpoint
 
+breakpoint()
 MODEL_PATH_PRE = f'./models/single_enc_model_pretrain_{str(datetime.now())[:-16]}.ckpt'
 MODEL_PATH = f'./models/single_enc_model_{str(datetime.now())[:-16]}'
 
@@ -27,7 +28,7 @@ NUM_DEC_AGENTS = 4
 NUM_ENC_AGENTS = 1
 QUESTION_SIZE = 2
 
-# trainng related params
+# training related params
 LEARNING_RATE = 0.001
 INITIAL_LOG_VAR = -10
 EPOCHS = 1000
@@ -37,7 +38,7 @@ BETA = .0001
 SHUFFLE = False
 PRETRAIN_LOSS_THRES = .0005
 PRETRAIN = True
-GPUS = 1
+GPUS = None
 BACKEND = None
 
 
@@ -94,7 +95,7 @@ if __name__ == '__main__':
 
     args_dct = vars(args)
     args_dct.update(dict(
-        observantion_size=int(dataset.observations.shape[1] / NUM_ENC_AGENTS),
+        observation_size=int(dataset.observations.shape[1] / NUM_ENC_AGENTS),
         lat_space_size=dataset.hidden_states.shape[1] - 1,
         question_size=QUESTION_SIZE,
         enc_num_hidden_layers=ENC_NUM_HIDDEN_LAYERS,
@@ -113,6 +114,7 @@ if __name__ == '__main__':
         batch_size=BATCH_SIZE,
         learning_rate=LEARNING_RATE))
 
+    breakpoint()
     if PRETRAIN:
 
         # Initialize model
@@ -127,12 +129,7 @@ if __name__ == '__main__':
         breakpoint()
         model.beta = 0.0002
         model.pretrain = False
-        with torch.no_grad():
-            for i in range(4):
-                for j in range(3):
-                    model.selection_bias[i, j] = -10
-
-
+    
     trainer = pl.Trainer.from_argparse_args(
         args,
         callbacks=[Callbacks()],
