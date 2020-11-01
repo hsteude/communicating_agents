@@ -11,6 +11,45 @@ import json
 
 
 class DataGenerator():
+    """This class generates the training data set using the reference experiments
+
+    This includes many optimization steps, so we recommend to use a beefy
+    machine (many cores) and use multiprocessing (supported by this class,
+    see generate method)
+
+    Parameters
+    ----------
+    param_dict : dict
+        Dictionary holding the default parameters for the reference experiments
+    sample_size : int
+        Number of samples to generate
+    sample_size_opt : int
+        Sample size for each optimization experiment (to find opt answer)
+    golf_hole_loc_m : float
+        position of the golf hole of the mass experiment in x direction
+    golf_hole_loc_c : float
+        position of the golf hole of the charge experiment in y direction
+    tolerance : float
+        Fraction of golf_hole_loc by which the particle can miss the golf
+        (still being a success)
+    dt_opt : float
+        Time delta for optimization experiments.
+        The smaller, the more accurate the optimal answer
+    m_range : list of two floats
+        Min and max value for the uniform random generation of
+        experimental settings (mass)
+    v_ref_range : list of two floats
+        Min and max value for the uniform random generation of
+        experimental settings (velocity of reference particles for questions)
+    q0_t_q1_range : list of two floats
+        Min and max value for the uniform random generation of
+        experimental settings (product of the changes of both particles)
+    batch_size : int
+        batch_size of the samples are run in parallel, so that a progress
+        bar can be displayed
+    seed : int
+        For reproducibility
+    """
     def __init__(self, param_dict, sample_size, m_range, q0_t_q1_range,
                  v_ref_range, seed, batch_size, sample_size_opt,
                  golf_hole_loc_m, golf_hole_loc_c, tolerance, dt_opt):
@@ -28,6 +67,15 @@ class DataGenerator():
         np.random.seed(seed)
 
     def _get_random_experimental_setting(self):
+        """Samples masses, charges and velocities for the experiments
+
+        Returns
+        -------
+        m : np.array
+        q : mp.array
+        v_ref_a : float
+        v_ref_b : float
+        """
         m = np.random.uniform(*self.m_range, 2)
         q0_t_q1 = np.random.uniform(*self.q0_t_q1_range, 1)
         c = np.random.uniform(.5, 1.5, 1)
@@ -37,8 +85,18 @@ class DataGenerator():
         return m, np.array([q0, q1]).ravel(), v_ref_a, v_ref_b
 
     def _run_reference_experiments(self, m, q):
-        """Note that we do NOT use the sampled reference velocities for the observations
-        since the encoder is not supposed to encode the velocity of the particle but only its mass"""
+        """Runs both reference experiment to generate observations
+
+        Note that we do NOT use the sampled reference velocities for the
+        observations but constant values for all samples.
+        The encoder is not supposed to encode the velocity of the particle
+        but only its mass
+
+        Returns
+        -------
+        ref_a_obs : np.array (shpae 10x2)
+        ref_b_obs : np.array (shpae 10x2)
+        """
         self.param_dict.update(m=m, q=q)
         rem = RefExperimentMass(**self.param_dict)
         req = RefExperimentCharge(**self.param_dict)
@@ -47,14 +105,49 @@ class DataGenerator():
         return rem.x_series, req.x_series
 
     def _get_questions(self, v_ref_a, v_ref_b):
-        qa0 = (self.param_dict['m_ref_m'], v_ref_a)
-        qa1 = (self.param_dict['m_ref_c'], v_ref_b)
-        return qa0, qa1
+        """Returns questions (including the mass and the velocity of the ref particle)
 
-    def _get_optimal_answers(self, m, q, v_ref_a, v_ref_b):
+        Returns
+        -------
+        q_a : np.array
+        q_b : np.array
+        """
+        q_a = (self.param_dict['m_ref_m'], v_ref_a)
+        q_b = (self.param_dict['m_ref_c'], v_ref_b)
+        return q_a, q_b
+
+    def _get_optimal_answers(self, v_ref_a, v_ref_b):
+        """Computes the optimal answers for both experiments and both particles
+
+        Note that this method does not require m and q, since those were
+        updated in the param dict in method _run_reference_experiments.
+
+        Parameters
+        ----------
+        v_ref_a : float
+            Velocity of reference particle for the mass experiment
+        v_ref_b : float
+            Velocity of reference particle for the charge experiment
+
+        Returns
+        -------
+        a_a : np.array (two floats)
+            Optimal angle reference experiment a for both particles
+        loss_a : np.array (two floats)
+            Optimization loss reference experiment a for both particles
+        hio_a : np.array (two bools)
+            True if particle one performed a hole in one
+        a_b : np.array (two floats)
+            Optimal angle reference experiment a for both particles
+        loss_b : np.array (two floats)
+            Optimization loss reference experiment a for both particles
+        hio_b : np.array (two bools)
+            True if particle one performed a hole in one
+        """
         rem_opt = RefExperimentMass(**self.param_dict)
         req_opt = RefExperimentCharge(**self.param_dict)
         req_opt.is_golf_game = True
+        rem_opt.v_ref = v_ref_a
         req_opt.v_ref = v_ref_b
         rem_opt.N = req_opt.N = self.sample_size_opt
         rem_opt.dt = req_opt.dt = self.dt_opt
@@ -73,6 +166,21 @@ class DataGenerator():
             golf_hole_loc=self.golf_hole_loc_c, tolerance=self.tolerance))
 
     def trans_data_set_to_tabular(self, data):
+        """Wraps all the attributes in a pandas df
+
+        Parameters
+        ----------
+        data : list or tuple
+            Holding m, q, o_a, o_b, q_a, q_b, a_a, a_b
+            Each of those is described in on of the docstrings above
+
+        Returns
+        -------
+        pd.DataFrame
+            Data frame with each row being on sample. The columns hold the
+            hidden states, the observations, the questions and the optimal
+            answers in correspondingly named columns
+        """
         # m, q, o_a, o_b, q_a, q_b, a_a, a_b
         data = [d for d in data if d]
         df_m = pd.DataFrame(
@@ -105,7 +213,16 @@ class DataGenerator():
         return pd.concat([df_m, df_q, df_o_a_0, df_o_a_1, df_o_b_0, df_o_b_1,
                           df_q_a, df_q_b, df_oa_a, df_oa_b], axis=1)
 
-    def generate(self, parallel=True, njobs=6):
+    def generate(self, parallel=True, njobs=-1):
+        """Main of this class, that generates the dataset as pd data frame
+
+        Parameters
+        ----------
+        parallel : bool
+            If true joblib is used to perform multiprocessing
+        njobs : int
+            Number of jobs to run in parallel
+        """
         def _in_parallel(self):
             try:
                 m, q, v_ref_a, v_ref_b = \
@@ -113,7 +230,7 @@ class DataGenerator():
                 o_a, o_b = self._run_reference_experiments(m, q)
                 q_a, q_b = self._get_questions(v_ref_a, v_ref_b)
                 a_a, loss_a, hio_a, a_b, loss_b, hio_b = \
-                    self._get_optimal_answers(m, q, v_ref_a, v_ref_b)
+                    self._get_optimal_answers(v_ref_a, v_ref_b)
                 if all([lo < self.tolerance for lo in [loss_a, loss_b]]) \
                         and all([hio_a[0], hio_a[1], hio_b[0], hio_b[1]]):
                     return m, q, o_a, o_b, q_a, q_b, a_a, a_b

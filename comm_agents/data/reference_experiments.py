@@ -6,16 +6,15 @@ G = 9.81  # Gravety constant
 
 
 class RefExperimentMass():
-    """
-    This class implements one reference experiment (mass) with two particles
+    """This class implements one reference experiment (mass) with two particles
 
     Parameters
     ----------
     m : list of two floats
-        List holds the mass of particle 0 and 1 respectively
+        List holds the masses of particle 0 and 1 respectively
     m_ref : float
         Mass of the reference particle
-    v_ref : float
+    v_ref_m : float
         Velocity of reference particle (before collision)
     N : int
         Number of simulation steps
@@ -48,7 +47,7 @@ class RefExperimentMass():
         Current velocity of both particles in x direction
     v_z : np.array
         Current velocity of both particles in z direction
-    x,z,t,v_x, and v_z_seris : np.array
+    x,z,t,v_x, and v_z_series : np.array
         Each hold the time series of the corresponding attributes within the
         simulation. Will be populated only when the run method is called
     """
@@ -65,6 +64,7 @@ class RefExperimentMass():
         self.set_initial_state()
 
     def set_initial_state(self):
+        """Resets the experiment to its original state"""
         self.t = 0
         self.m = np.array(self.m)
         self.x = np.zeros(2)
@@ -78,12 +78,25 @@ class RefExperimentMass():
         self.v_z_series = np.empty_like(self.x_series)
 
     def _get_initial_velocity(self):
+        """Computes the initial velocity of the particle
+
+        After the elastic collision with the reference particle
+
+        Returns
+        -------
+        v_x : float
+        v_z : float
+        """
         v_abs = 2 * self.m_ref / (self.m + self.m_ref) * self.v_ref
         v_x = v_abs * np.cos(self.angle)
         v_z = v_abs * np.sin(self.angle)
         return v_x, v_z
 
     def _update_velocity(self):
+        """Computes the updates for the velocity in x and z direction after dt
+
+        Using the leap frog method (see wiki)
+        """
         # velocity after elastic collision
         if self.t == 0:
             self.v_x, self.v_z = self._get_initial_velocity()
@@ -92,6 +105,7 @@ class RefExperimentMass():
             self.v_z = self.v_z - self.g * self.dt
 
     def _update_position(self):
+        """Updates the position after dt"""
         # update position
         self.x += self.v_x * self.dt
         self.z += self.v_z * self.dt - .5 * self.g * self.dt**2
@@ -99,6 +113,7 @@ class RefExperimentMass():
         self.t += self.dt
 
     def run(self):
+        """Runs the experiment"""
         for i in range(self.N):
             self.x_series[i, :] = self.x
             self.z_series[i, :] = self.z
@@ -110,16 +125,33 @@ class RefExperimentMass():
             self.t += self.dt
 
     def check_for_hole_in_one(self, golf_hole_loc=.1, tolerance=.1):
+        """Checks whether ref particle hit the golf hole
+
+        Parameters
+        ----------
+        golf_hole_loc : float
+            position of the golf hole in x direction
+        tolerance : float
+            Fraction of golf_hole_loc by which the particle can miss the golf
+            (still being a success)
+
+        Returns
+        -------
+        hio0 : bool
+            True if particle one performed a hole in one
+        hio1 : bool
+            True if particle two performed a hole in one
+        """
         min_ = golf_hole_loc - tolerance * golf_hole_loc
         max_ = golf_hole_loc + tolerance * golf_hole_loc
 
         zero_cross_0 = np.where(np.diff(np.sign(self.z_series[:, 0])))[0]
         zero_cross_1 = np.where(np.diff(np.sign(self.z_series[:, 1])))[0]
 
-        # ignore zero corssing at indx 0
+        # ignore zero crossing at index 0
         zero_cross_0 = [z for z in zero_cross_0 if z > 0]
         zero_cross_1 = [z for z in zero_cross_1 if z > 0]
-        # check of one of the points arround zc or their avg is in bounds
+        # check of one of the points around zc or their avg is in bounds
         hio0, hio1 = False, False
         if zero_cross_0:
             bevore0 = self.x_series[zero_cross_0[0]][0]
@@ -135,14 +167,25 @@ class RefExperimentMass():
 
         return hio0, hio1
 
-    def visualize(self, golf_hole_loc=20, tolerance=.1):
+    def visualize(self, golf_hole_loc=.1, tolerance=.1):
+        """Creates (and shows) a plotly chart describing the experiment
+
+        Parameters
+        ----------
+        golf_hole_loc : float
+            position of the golf hole in x direction
+        tolerance : float
+            Fraction of golf_hole_loc by which the particle can miss the golf
+            (still being a success)
+        """
+
         from plotly.subplots import make_subplots
         import plotly.graph_objects as go
         fig = make_subplots(rows=1, cols=1)
         trace_pp1 = go.Scatter(x=self.x_series[:, 0], y=self.z_series[:, 0],
-                               name='Particle 1', mode='lines+markers')
+                               name='Particle 0', mode='lines+markers')
         trace_pp2 = go.Scatter(x=self.x_series[:, 1], y=self.z_series[:, 1],
-                               name='Particle 2', mode='lines+markers')
+                               name='Particle 1', mode='lines+markers')
         trace_golf_hole = go.Scatter(
             x=[golf_hole_loc - tolerance * golf_hole_loc,
                 golf_hole_loc + tolerance * golf_hole_loc],
@@ -154,8 +197,8 @@ class RefExperimentMass():
         fig.update_xaxes(range=[-.05, .2])
         fig.update_yaxes(range=[-.05, .1])
         title = \
-            f'Ref. experiment A. Alpha1: {round(self.angle[0] / np.pi, 2)}'\
-            f' pi, Alpha2: {round(self.angle[1] / np.pi, 2)} pi'
+            f'Ref. experiment A. alpha0: {round(self.angle[0] / np.pi, 2)}'\
+            f' pi, alpha1: {round(self.angle[1] / np.pi, 2)} pi'
         fig.update_layout(title_text=title)
         fig.update_xaxes(title_text="Position x [m]", row=1, col=1)
         fig.update_yaxes(title_text="Position z [m]", row=1, col=1)
@@ -169,12 +212,14 @@ class RefExperimentCharge():
     Parameters
     ----------
     m : list of two floats
-        List holds the mass of particle 0 and 1 respectively
+        List holds the masses of particle 0 and 1 respectively
     q : list of two floats
-        List holds the mass of particle 0 and 1 respectively
+        List holds the charges of particle 0 and 1 respectively
     m_ref : float
         Mass of the reference particle
-    v_ref : float
+    q_ref : list of two floats
+        Charges of the reference particles
+    v_ref_c : float
         Velocity of reference particle (before collision)
     N : int
         Number of simulation steps
@@ -203,9 +248,9 @@ class RefExperimentCharge():
         Current position of both particles in z direction
     v_x : np.array
         Current velocity of both particles in x direction
-    v_z : np.array
+    v_y : np.array
         Current velocity of both particles in z direction
-    x,z,t,v_x, and v_z_seris : np.array
+    x,y,t,v_x, and v_y_series : np.array
         Each hold the time series of the corresponding attributes within the
         simulation. Will be populated only when the run method is called
     """
@@ -228,6 +273,7 @@ class RefExperimentCharge():
         self.y_cap = y_cap
 
     def set_initial_state(self):
+        """Resets the experiment to its original state"""
         self.t = 0
         self.m = np.array(self.m)
         self.x = np.zeros(2)
@@ -249,12 +295,24 @@ class RefExperimentCharge():
             self.q_ref = np.flip(self.q)
 
     def _get_initial_velocity(self):
+        """Computes the initial velocity of the particle
+        After the elastic collision with the reference particle
+
+        Returns
+        -------
+        v_x : float
+        v_y : float
+        """
         v_abs = 2 * self.m_ref / (self.m + self.m_ref) * self.v_ref
         v_x = v_abs * np.cos(self.angle)
         v_y = v_abs * np.sin(self.angle)
         return v_x, v_y
 
     def _update_acceleration(self):
+        """Computes the updates for the acceleration in x and y direction after dt
+
+        Using the leap frog method (see wikipedia)
+        """
         # get coulomb forces
         dist = np.sqrt((self.x - self.x_ref)**2 + (self.y - self.y_ref)**2)
 
@@ -269,6 +327,10 @@ class RefExperimentCharge():
         self.a_y = F_c_y / self.m
 
     def _update_velocity(self):
+        """Computes the updates for the velocity in x and y direction after dt
+
+        Using the leap frog method (see wiki)
+        """
         # velocity after elastic collision
         if self.t == 0:
             self.v_x, self.v_y = self._get_initial_velocity()
@@ -277,20 +339,23 @@ class RefExperimentCharge():
             self.v_y = self.v_y + .5 * (self.last_a_y + self.a_y) * self.dt
 
     def _update_position(self):
+        """Updates the position after dt"""
         # update position
         self.x += self.v_x * self.dt + .5 * self.a_x * self.dt**2
         self.y += self.v_y * self.dt + .5 * self.a_y * self.dt**2
         # update time
         self.t += self.dt
 
+        # we add a position limit in the y direction to avoid particles moving
+        # in circles
         if self.y_cap:
             for i in range(len(self.m)):
-                # this should not happen, propably the ref. par.
                 if self.y[i] < 0:
                     self.x[i] = self.x_ref + .001  # avoiding division by zero
                     self.y[i] = self.y_ref + .001
 
     def run(self):
+        """Runs the experiment"""
         for i in range(self.N):
             self.x_series[i, :] = self.x
             self.y_series[i, :] = self.y
@@ -307,16 +372,34 @@ class RefExperimentCharge():
             self.t += self.dt
 
     def check_for_hole_in_one(self, golf_hole_loc=.1, tolerance=.1):
+        """Checks whether ref particle hit the golf hole
+
+        Parameters
+        ----------
+        golf_hole_loc : float
+            position of the golf hole in x direction
+        tolerance : float
+            Fraction of golf_hole_loc by which the particle can miss the golf
+            (still being a success)
+
+        Returns
+        -------
+        hio0 : bool
+            True if particle one performed a hole in one
+        hio1 : bool
+            True if particle two performed a hole in one
+        """
         min_ = golf_hole_loc - tolerance * golf_hole_loc
         max_ = golf_hole_loc + tolerance * golf_hole_loc
 
         zero_cross_0 = np.where(np.diff(np.sign(self.x_series[:, 0])))[0]
         zero_cross_1 = np.where(np.diff(np.sign(self.x_series[:, 1])))[0]
 
-        # ignore zero corssing at indx 0
+        # ignore zero crossing at index 0
         zero_cross_0 = [x for x in zero_cross_0 if x > 0]
         zero_cross_1 = [x for x in zero_cross_1 if x > 0]
-        # check of one of the points arround zc or their avg is in bounds
+
+        # check of one of the points around zc or their avg is in bounds
         hio0, hio1 = False, False
         if zero_cross_0:
             bevore0 = self.y_series[zero_cross_0[0]][0]
@@ -333,13 +416,23 @@ class RefExperimentCharge():
         return hio0, hio1
 
     def visualize(self, golf_hole_loc=.1, tolerance=.1):
+        """Creates (and shows) a plotly chart describing the experiment
+
+        Parameters
+        ----------
+        golf_hole_loc : float
+            position of the golf hole in y direction
+        tolerance : float
+            Fraction of golf_hole_loc by which the particle can miss the golf
+            (still being a success)
+        """
         import plotly.graph_objects as go
         fig = go.Figure()
         trace_pp1 = go.Scatter(x=self.x_series[:, 0], y=self.y_series[:, 0],
-                               name='Particle 1', mode='lines+markers',
+                               name='Particle 0', mode='lines+markers',
                                opacity=0.5)
         trace_pp2 = go.Scatter(x=self.x_series[:, 1], y=self.y_series[:, 1],
-                               name='Particle 2', mode='lines+markers',
+                               name='Particle 1', mode='lines+markers',
                                opacity=0.5)
         trace_p_ref = go.Scatter(
             x=[self.x_ref, self.x_ref],
@@ -357,8 +450,8 @@ class RefExperimentCharge():
         fig.update_xaxes(range=[-.05, .2])
         fig.update_yaxes(range=[-.05, .2])
         title = \
-            f'Ref. experiment B, Phi1: {round(self.angle[0] / np.pi, 2)}'\
-            f' pi, Phi2: {round(self.angle[1] / np.pi, 2)} pi'
+            f'Ref. experiment B, phi0: {round(self.angle[0] / np.pi, 2)}'\
+            f' pi, phi1: {round(self.angle[1] / np.pi, 2)} pi'
         fig.update_layout(title_text=title)
         fig.update_xaxes(title_text="Position x [m]")
         fig.update_yaxes(title_text="Position y [m]")
