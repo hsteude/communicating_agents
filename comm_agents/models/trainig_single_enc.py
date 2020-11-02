@@ -11,7 +11,6 @@ from loguru import logger
 from datetime import datetime
 from pytorch_lightning.callbacks import ModelCheckpoint
 
-breakpoint()
 MODEL_PATH_PRE = f'./models/single_enc_model_pretrain_{str(datetime.now())[:-16]}.ckpt'
 MODEL_PATH = f'./models/single_enc_model_{str(datetime.now())[:-16]}'
 
@@ -114,7 +113,6 @@ if __name__ == '__main__':
         batch_size=BATCH_SIZE,
         learning_rate=LEARNING_RATE))
 
-    breakpoint()
     if PRETRAIN:
 
         # Initialize model
@@ -126,7 +124,6 @@ if __name__ == '__main__':
         logger.debug(f'Loading pretrained model from {pretrained_model_path}')
         model = SingleEncModel.load_from_checkpoint(
             pretrained_model_path)
-        breakpoint()
         model.beta = 0.0002
         model.pretrain = False
     

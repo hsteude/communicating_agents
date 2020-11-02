@@ -37,7 +37,7 @@ Note that the original implementation can already be found on [github](https://g
 ```
 
 #### Installation
-Assuming you have a fresh virtual environmen wiht python 3.7 or higher, run the following code in the root of this project.
+Assuming you have a fresh virtual environment wiht python 3.7 or higher, run the following code in the root of this project.
 ```shell
 pip install -e .
 ```
@@ -47,7 +47,7 @@ Data set generation (with virt env activated):
 ```shell
 python comm_agents/data/data_generator.py
 ```
-Note that this one runs quite a while and it makes sense to use a beefy machine (many cpus) and specify the numbe of jobs to run in the config.json (e.g. 48).
+Note that this one runs quite a while and it makes sense to use a beefy machine (many cpus) and specify the number of jobs to run in the config.json (e.g. 48).
 
 Model training:
 ```shell
