@@ -1,3 +1,4 @@
+# Communicating Agents
 ### Re-Implementation of "Operationally meaningful representations of physical systems in neural networks"
 This repo is our implementation of the NN architecture proposed in H. Poulsen Nautrup, T. Metger, R. Iten, S. Jerbi, L.M. Trenkwalder, H.Wilming, H.J. Briegel, and R. Renner. "Operationally meaningful representations of physical systems in neural networks" (2020).
 Note that the original implementation can already be found on [github](https://github.com/tonymetger/communicating_scinet), we implemented this one from scratch and chose different approaches e.g. with regards to the training data generation or the model implementation.
